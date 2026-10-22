@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { clearBookingDraft, saveBookingDraft } from "./booking-draft-store";
 import { preloadGuestCaptchaScript } from "./GuestCaptchaField";
 import { CatalogCalendarIcon, CatalogClockIcon } from "./catalog-field-icons";
-import { cardFeeCopy } from "@/lib/orders/checkout-quote-display";
+import { selectionCopy } from "@/lib/orders/price/display";
 import { catalogDayKey, catalogSelectedDateLabel, catalogTimezoneLabel } from "./catalog-booking-logic";
 
 const ROW = { display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0" } as const;
@@ -33,9 +33,9 @@ export function CatalogWhoSummary({
   total: string;
   addressNote?: "studio" | "client" | "none";
   /** TUL-1268 item 5: the pass-through card fee and what is charged now, shown before Stripe. */
-  cardFee?: { feeLabel: string | null; payNowLabel: string | null; travelFeeLabel?: string | null } | null;
+  cardFee?: { feeLabel: string | null; payNowLabel: string | null; travelFeeLabel?: string | null; discountLabel?: string | null; balanceLabel?: string | null } | null;
 }) {
-  const feeCopy = cardFeeCopy(es);
+  const feeCopy = selectionCopy(es);
   const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const val = { textAlign: "right" } as const;
   return (
@@ -56,17 +56,29 @@ export function CatalogWhoSummary({
         <span>Total</span>
         <b style={val}>{total}</b>
       </div>
-      {cardFee?.feeLabel && cardFee.payNowLabel ? (
-        <>
-          <div style={ROW} data-catalog-card-fee="">
-            <span>{feeCopy.fee}</span>
-            <b style={val}>+ {cardFee.feeLabel}</b>
-          </div>
-          <div style={ROW} data-catalog-pay-now="">
-            <span>{feeCopy.payNow}</span>
-            <b style={val}>{cardFee.payNowLabel}</b>
-          </div>
-        </>
+      {cardFee?.discountLabel ? (
+        <div style={ROW} data-catalog-promo-discount="">
+          <span>{feeCopy.discount}</span>
+          <b style={val}>- {cardFee.discountLabel}</b>
+        </div>
+      ) : null}
+      {cardFee?.feeLabel ? (
+        <div style={ROW} data-catalog-card-fee="">
+          <span>{feeCopy.fee}</span>
+          <b style={val}>+ {cardFee.feeLabel}</b>
+        </div>
+      ) : null}
+      {cardFee?.payNowLabel ? (
+        <div style={ROW} data-catalog-pay-now="">
+          <span>{feeCopy.payNow}</span>
+          <b style={val}>{cardFee.payNowLabel}</b>
+        </div>
+      ) : null}
+      {cardFee?.balanceLabel ? (
+        <div style={ROW} data-catalog-balance-due="">
+          <span>{feeCopy.balance}</span>
+          <b style={val}>{cardFee.balanceLabel}</b>
+        </div>
       ) : null}
       {cardFee?.travelFeeLabel ? (
         <div style={ROW} data-catalog-travel-fee="">

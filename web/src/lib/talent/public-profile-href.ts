@@ -183,6 +183,6 @@ export function copyTalentOwnPublicLink(
     toast(t("Publish your profile first to get a public link"));
     return;
   }
-  navigator.clipboard?.writeText(own?.href ?? "https://tulala.digital/t/marta-reyes");
+  navigator.clipboard?.writeText(own?.href ?? `${canonicalProfileOrigin()}/t/marta-reyes`);
   toast("Public link copied to clipboard");
 }

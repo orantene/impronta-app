@@ -28,6 +28,7 @@ import {
   type AccountDiscountSubjectType,
 } from "@/lib/billing/subscription-discounts";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { promoErrorFromReason } from "@/lib/billing/promo-preview";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,6 +51,11 @@ export type AppliedCheckoutDiscount =
   | { source: "code"; code: string; couponId: string | null; promotionCodeId: string | null };
 
 export type ResolvedCheckoutDiscount = {
+  /**
+   * TUL-1860: set when the buyer's code exists but is expired / inactive / not started / capped. Checkout
+   * creation must refuse with a clear message rather than quietly charge full price.
+   */
+  rejected?: "expired";
   params: CheckoutDiscountParams;
   /** What was pre-applied, for logging / metadata. Null = buyer may type one. */
   applied: AppliedCheckoutDiscount | null;
@@ -162,7 +168,7 @@ export function withinPerCustomerLimit(
 }
 
 /** How many times this subject has already redeemed this discount. */
-async function countSubjectRedemptions(input: {
+export async function countSubjectRedemptions(input: {
   discountId: string;
   subjectType: AccountDiscountSubjectType;
   tenantId: string | null;
@@ -228,7 +234,11 @@ export async function resolveCheckoutDiscount(
     "@/lib/server-actions/admin-product-discounts"
   );
   const validated = await validateDiscount(code);
-  if (!validated.ok) return OPEN_TO_PROMOTION_CODES;
+  if (!validated.ok) {
+    return promoErrorFromReason(validated.reason) === "expired"
+      ? { ...OPEN_TO_PROMOTION_CODES, rejected: "expired" }
+      : OPEN_TO_PROMOTION_CODES;
+  }
 
   // `validateDiscount` answers "is this code live" — window, active flag, total
   // redemption cap. The two SUBJECT-dependent limits can only be checked here,

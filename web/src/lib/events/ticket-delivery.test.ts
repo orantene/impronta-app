@@ -322,3 +322,87 @@ test("locale chain (D-163): guest → customer → workspace public default → 
   assert.equal(res.ok, true);
   assert.match(outboxDelta().html, /<html lang="es">/);
 });
+
+// ---------------------------------------------------------------------------
+// TUL-1402: tickets are mailed once per order, however the order is re-submitted.
+// A STATEFUL fake: updates mutate the rows and a conditional update claims
+// atomically (single-threaded, so the check-and-set cannot interleave).
+// ---------------------------------------------------------------------------
+
+function statefulAdmin(rows: Record<string, Row[]>) {
+  return {
+    from(table: string) {
+      // Filters are evaluated when the query EXECUTES (like Postgres), and the
+      // check-and-set happens in one synchronous step, so two concurrent claims
+      // cannot both match the same row.
+      const filters: Array<(r: Row) => boolean> = [];
+      let patch: Row | null = null;
+      let removing = false;
+      const run = (): Row[] => {
+        const matched = (rows[table] ?? []).filter((r) => filters.every((f) => f(r)));
+        if (patch) for (const r of matched) Object.assign(r, patch);
+        if (removing) rows[table] = (rows[table] ?? []).filter((r) => !matched.includes(r));
+        return matched.map((r) => ({ ...r }));
+      };
+      const chain: Record<string, unknown> = {};
+      Object.assign(chain, {
+        select: () => chain,
+        // Order-claim ledger (TUL-1267): insert-if-absent on dedupe_key, and delete.
+        insert: async (payload: Row) => {
+          const table_rows = (rows[table] ??= []);
+          if (table_rows.some((r) => r.dedupe_key === payload.dedupe_key)) return { data: null, error: { code: "23505", message: "duplicate" } };
+          table_rows.push(payload);
+          return { data: null, error: null };
+        },
+        delete: () => { removing = true; return chain; },
+        update: (p: Row) => { patch = p; return chain; },
+        eq: (c: string, v: unknown) => { filters.push((r) => r[c] === v); return chain; },
+        in: (c: string, vs: unknown[]) => { filters.push((r) => vs.includes(r[c])); return chain; },
+        is: (c: string, v: unknown) => { if (v === null) filters.push((r) => r[c] == null); return chain; },
+        order: () => chain, limit: () => chain,
+        maybeSingle: async () => ({ data: run()[0] ?? null, error: null }),
+        then: (res: (v: { data: Row[]; error: null }) => unknown) => Promise.resolve().then(() => ({ data: run(), error: null })).then(res),
+      });
+      return chain;
+    },
+  };
+}
+
+const outboxCount = () => readdirSync(OUTBOX).filter((n) => n.endsWith(".html")).length;
+
+test("a double-submitted free order mails the tickets once, sequentially and concurrently", async () => {
+  const w = world();
+  const admin = statefulAdmin(w as unknown as Record<string, Row[]>);
+  const before = outboxCount();
+  const [a, b] = await Promise.all([
+    deliverTicketsForOrder(admin, { tenantId: T, orderId: ORDER }),
+    deliverTicketsForOrder(admin, { tenantId: T, orderId: ORDER }),
+  ]);
+  const third = await deliverTicketsForOrder(admin, { tenantId: T, orderId: ORDER });
+  assert.equal(outboxCount() - before, 1, "exactly one mail");
+  assert.equal([a, b, third].filter((r) => r.ok && r.sent === 1).length, 1, "one caller sent");
+  assert.ok([a, b, third].every((r) => r.ok), "the others are clean skips");
+});
+
+test("a FAILED forced resend restores the earlier sent record, so a later retry never mails again", async () => {
+  const sentRecord = { method: "email", to: "ana@example.com", sent_at: "2026-10-01T00:00:00Z" };
+  // Not deliverable now: no holder address, no customer, no payer.
+  const w = world({ admissions: [{ ...world().admissions[0], holder_email: null, delivery: sentRecord }] });
+  const admin = statefulAdmin(w as unknown as Record<string, Row[]>);
+  const before = outboxCount();
+  const resend = await deliverTicketsForOrder(admin, { tenantId: T, orderId: ORDER, force: true });
+  assert.deepEqual(resend, { ok: false, reason: "channel_unavailable" });
+  assert.deepEqual((w.admissions as Row[])[0]!.delivery, sentRecord, "the original delivery record survives the failed resend");
+  // The webhook retry (not forced) must still find it delivered.
+  const retry = await deliverTicketsForOrder(admin, { tenantId: T, orderId: ORDER });
+  assert.deepEqual(retry, { ok: true, sent: 0, skipped: 1 });
+  assert.equal(outboxCount() - before, 0, "nothing mailed");
+});
+
+test("a failed FIRST send still releases the claim so the retry can try again", async () => {
+  const w = world({ admissions: [{ ...world().admissions[0], holder_email: null, delivery: null }] });
+  const admin = statefulAdmin(w as unknown as Record<string, Row[]>);
+  const res = await deliverTicketsForOrder(admin, { tenantId: T, orderId: ORDER });
+  assert.deepEqual(res, { ok: false, reason: "channel_unavailable" });
+  assert.equal((w.admissions as Row[])[0]!.delivery, null, "released, not left looking delivered");
+});

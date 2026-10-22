@@ -3,14 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { CHOOSE_COPY, FLOW_STEP_OF, FLOW_TOTAL, flowStepOf, flowSubLabel, type FlowLocale } from "./flow";
+import { FLOW_STEP_OF, FLOW_TOTAL, flowProgressLine, flowShowsCounter, flowStepOf, type FlowLocale } from "./flow";
 import type { ModuleStep } from "./module-state";
 
-/** The progress line exactly as the wizard composes it (onboarding-module.tsx, data-testid="onb-step-label"). */
-function progressLine(step: ModuleStep, locale: FlowLocale): string {
-  const sub = flowSubLabel(step, locale);
-  return `${CHOOSE_COPY[locale].progress(flowStepOf(step))}${sub ? ` · ${sub}` : ""}`;
-}
+const progressLine = (step: ModuleStep, locale: FlowLocale): string => flowProgressLine(step, locale);
 
 const stepsInSource = (): string[] => {
   const src = readFileSync(join(process.cwd(), "src/lib/onboarding/module-state.ts"), "utf8");
@@ -23,14 +19,16 @@ test("TUL-813: every wizard screen maps to a step, and the map has no strays", (
 });
 
 for (const locale of ["es", "en"] as const) {
-  test(`TUL-813 (${locale}): review, email and code read as 4/4 with distinct labels; total never grows`, () => {
-    const lines = (["readyToBuild", "save", "code"] as const).map((s) => progressLine(s, locale));
-    for (const l of lines) assert.match(l, new RegExp(`4/${FLOW_TOTAL}`));
-    assert.equal(new Set(lines).size, 3, "three screens, three different lines");
+  test(`TUL-813 (${locale}): only the review says 4/4; email and code carry no counter; total never grows`, () => {
+    const [review, email, code] = (["readyToBuild", "save", "code"] as const).map((s) => progressLine(s, locale));
+    assert.match(review, new RegExp(`4/${FLOW_TOTAL}`));
+    assert.doesNotMatch(email, /\d\s*\/\s*\d/);
+    assert.doesNotMatch(code, /\d\s*\/\s*\d/);
+    assert.equal(new Set([review, email, code]).size, 3, "three screens, three different lines");
     for (const step of Object.keys(FLOW_STEP_OF) as ModuleStep[]) {
       const n = flowStepOf(step);
       assert.ok(n >= 1 && n <= FLOW_TOTAL, `${step} -> ${n}`);
-      assert.match(progressLine(step, locale), new RegExp(`${n}/${FLOW_TOTAL}`), step);
+      if (flowShowsCounter(step)) assert.match(progressLine(step, locale), new RegExp(`${n}/${FLOW_TOTAL}`), step);
     }
   });
 
@@ -44,5 +42,5 @@ for (const locale of ["es", "en"] as const) {
 
 test("TUL-813: the wizard shell renders the sub label next to the counter", () => {
   const src = readFileSync(join(process.cwd(), "src/components/onboarding/onboarding-module.tsx"), "utf8");
-  assert.match(src, /flowSubLabel\(state\.step, locale\)/);
+  assert.match(src, /flowProgressLine\(state\.step, locale\)/);
 });

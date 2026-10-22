@@ -26,7 +26,8 @@ import {
   type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
-import { formatMonthLabel, monthKeyInZone } from "@/lib/money/money-rules";
+import { formatMonthLabel } from "@/lib/money/money-rules";
+import { currentCollectedMonth } from "@/lib/talent/collected-month";
 import { refundOwnBookingPayment } from "@/lib/talent-agenda";
 import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
 import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
@@ -54,7 +55,7 @@ function day(iso: string | null, locale: string): string {
 }
 
 function currentMonthKey(): string {
-  return monthKeyInZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return currentCollectedMonth(new Date());
 }
 
 const METHOD_LABEL: Record<MoneyMethodBucket, string> = {

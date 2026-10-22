@@ -117,6 +117,8 @@ export function notifyDepositReceived(params: {
   payerUserId: string | null;
   payerEmail: string | null;
   depositAmountCents: number;
+  /** What the deposit credited to the order (without the card fee); the balance is total minus this. */
+  principalCents?: number | null;
   currency: string;
   paidAt: string | null;
 }): void {
@@ -132,6 +134,7 @@ export function notifyDepositReceived(params: {
       payerUserId: params.payerUserId,
       payerEmail: params.payerEmail,
       depositAmountCents: params.depositAmountCents,
+      principalCents: params.principalCents ?? null,
       currency: params.currency,
       paidAt: params.paidAt,
     },

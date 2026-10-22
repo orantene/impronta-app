@@ -6,6 +6,7 @@
 // Manage subscription CTA opens Stripe Billing Portal for active subscribers.
 // Capability gate: agency.workspace.view (viewer+). Billing CTAs: manage_billing (admin+).
 
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { notFound, redirect } from "next/navigation";
 import { verifyCheckoutReturn } from "@/lib/billing/checkout-return";
 import Link from "next/link";
@@ -148,13 +149,7 @@ export default async function WorkspaceAccountPage({
     billingState.status !== "incomplete_expired";
 
   // Format billing period end for display
-  const periodEndLabel = billingState?.currentPeriodEnd
-    ? new Date(billingState.currentPeriodEnd).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
+  const periodEndLabel = formatPeriodDate(billingState?.currentPeriodEnd, "en");
 
   // TUL-828: /pricing -> /start?plan= -> here. Start the chosen checkout once;
   // the component falls back to this page on any failure.

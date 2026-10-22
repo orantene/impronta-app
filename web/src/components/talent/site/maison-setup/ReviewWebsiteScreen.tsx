@@ -5,6 +5,7 @@
  * Desktop: preview + 360px panel. Phone: preview + card + sticky Publish.
  */
 
+import { publicSubdomainHost } from "@/lib/brand/public-root-domain";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   loadMaisonReviewStateAction,
@@ -158,7 +159,7 @@ export function ReviewWebsiteScreen({
     : "…";
 
   const addressLabel = state?.siteSlug
-    ? `${state.siteSlug}.tulala.digital`
+    ? publicSubdomainHost(state.siteSlug)
     : "—";
 
   const panel = (

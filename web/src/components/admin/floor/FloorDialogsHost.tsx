@@ -18,6 +18,7 @@ import { DepartedDialog, ResetDialog } from "./FloorDialogs";
 import { MergeChecksSheet } from "./MergeChecksSheet";
 import { MoveSheet } from "./MoveSheet";
 import { SplitCheckSheet } from "./SplitCheckSheet";
+import { ReservationDetailSheet } from "./ReservationDetailSheet";
 import { ReservationSheet } from "./ReservationSheet";
 import { SeatPartySheet } from "./SeatPartySheet";
 import { WaitingSheet, WalkInSheet } from "./WalkInSheets";
@@ -144,7 +145,43 @@ export function FloorDialogsHost(props: FloorDialogsHostProps) {
     if (r.ok) props.onClose();
   }
 
+  async function noShow(entry: FloorBookEntry) {
+    const mark = actions.markNoShow;
+    if (!mark) return;
+    const r = await run(() => mark({ admissionId: entry.admissionId }));
+    if (r.ok) {
+      props.onClose();
+      props.onNotice(interpolate(copy.booking.noShowDone, { name: entry.holderName ?? copy.panel.walkIn }));
+    }
+  }
+
+  async function cancelBooking(entry: FloorBookEntry) {
+    const cancel = actions.cancelReservation;
+    if (!cancel) return;
+    const r = await run(() => cancel({ admissionId: entry.admissionId }));
+    if (r.ok) {
+      props.onClose();
+      props.onNotice(copy.booking.cancelDone);
+    }
+  }
+
   switch (overlay.kind) {
+    case "booking":
+      return (
+        <ReservationDetailSheet
+          key={overlay.entry.admissionId}
+          open
+          data={data}
+          copy={copy}
+          actions={actions}
+          entry={overlay.entry}
+          busy={busy}
+          onClose={props.onClose}
+          onSeat={props.onSeatEntry}
+          onNoShow={(entry) => void noShow(entry)}
+          onCancel={(entry) => void cancelBooking(entry)}
+        />
+      );
     case "seat":
       return (
         <SeatPartySheet

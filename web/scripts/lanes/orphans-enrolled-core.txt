@@ -99,6 +99,7 @@ src/components/admin/shell/internal/talent/agenda/timezone-suggestion.test.ts
 src/components/admin/shell/internal/talent/agenda/today-row-location-label.test.ts
 src/components/admin/shell/internal/talent/agenda/today-row-name-wrap.static.test.ts
 src/components/admin/shell/internal/talent/agenda/view-model-reschedule.test.ts
+src/components/admin/shell/internal/talent/agenda/view-model-unscheduled.test.ts
 src/components/admin/shell/internal/talent/agenda/working-hours-panel.static.test.ts
 src/components/admin/shell/internal/talent/availability-accepting.static.test.ts
 src/components/admin/shell/internal/talent/pages/clients-filter-chips.static.test.ts
@@ -106,6 +107,7 @@ src/components/admin/shell/internal/talent/pages/live1-misitio-es.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.actions.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.deeplink.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/TalentDecisionBar.static.test.ts
+src/components/admin/shell/internal/talent/pages/messages/focus-thread-heading.test.ts
 src/components/admin/shell/internal/talent/pages/my-profile-layout.static.test.ts
 src/components/admin/shell/internal/talent/pages/my-profile-preview-link.static.test.ts
 src/components/admin/shell/internal/talent/pages/profile-render-safety.static.test.ts
@@ -280,8 +282,13 @@ src/lib/notifications/coordinator-role-notify.test.ts
 src/lib/notifications/hub-listing-below-minimum.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
 src/lib/offerings/guest-sellable.test.ts
+src/lib/onboarding/almost-ready-honesty.test.ts
 src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
+src/lib/onboarding/flow.test.ts
+src/lib/onboarding/start-guard-tul806.test.ts
+src/lib/onboarding/start-guard-tul813.test.ts
+src/lib/onboarding/step-url.test.ts
 src/lib/onboarding/type-search.test.ts
 src/lib/payments/payout-account-verification.test.ts
 src/lib/payments/payout-accounts-start-pending.test.ts

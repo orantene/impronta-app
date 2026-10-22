@@ -44,13 +44,25 @@ export type FlowLocale = "en" | "es";
 
 /**
  * TUL-813: review, email and code all live in step 4. Email and code are
- * sub-steps, so the progress line names them instead of repeating "4/4"
- * three times with no change. The total never grows.
+ * account sub-steps, so the progress line names them instead of repeating
+ * "4/4" three times. The total never grows.
  */
 export function flowSubLabel(step: ModuleStep, locale: FlowLocale): string | null {
   if (step === "save") return locale === "es" ? "TU CUENTA" : "YOUR ACCOUNT";
   if (step === "code") return locale === "es" ? "CÓDIGO DEL CORREO" : "EMAIL CODE";
   return null;
+}
+
+/** TUL-813: the account screens (email, code) carry no n/4 counter, only their name. */
+export function flowShowsCounter(step: ModuleStep): boolean {
+  return step !== "save" && step !== "code";
+}
+
+/** TUL-813: the progress line as the wizard shows it. Review is the only "4/4"; the account screens read "TU INICIO · TU CUENTA". */
+export function flowProgressLine(step: ModuleStep, locale: FlowLocale): string {
+  const sub = flowSubLabel(step, locale);
+  if (!flowShowsCounter(step)) return `${locale === "es" ? "TU INICIO" : "YOUR START"} · ${sub ?? ""}`;
+  return `${CHOOSE_COPY[locale].progress(flowStepOf(step))}${sub ? ` · ${sub}` : ""}`;
 }
 
 /**

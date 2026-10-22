@@ -35,6 +35,7 @@ src/lib/billing/cancel-state-notice.test.ts
 src/lib/billing/checkout-fee-lines.test.ts
 src/lib/billing/checkout-interval.test.ts
 src/lib/billing/checkout-session-sync.test.ts
+src/lib/billing/discount-archive-outcome.test.ts
 src/lib/billing/dunning-grace.test.ts
 src/lib/billing/dunning-notice.test.ts
 src/lib/billing/duplicate-subscription-wiring.static.test.ts
@@ -44,8 +45,11 @@ src/lib/billing/effective-talent-plan.test.ts
 src/lib/billing/effective-workspace-plan.test.ts
 src/lib/billing/fee-card-load.static.test.ts
 src/lib/billing/fee-config.static.test.ts
+src/lib/billing/period-date.test.ts
 src/lib/billing/plan-change-policy.test.ts
+src/lib/billing/plan-change-promo.test.ts
 src/lib/billing/plan-change.test.ts
+src/lib/billing/promo-expired-apply-points.static.test.ts
 src/lib/billing/promo-input-wiring.static.test.ts
 src/lib/billing/promo-preview.test.ts
 src/lib/billing/talent-billing-display.test.ts
@@ -53,6 +57,7 @@ src/lib/billing/talent-cancel.test.ts
 src/lib/billing/talent-past-due-wiring.static.test.ts
 src/lib/billing/talent-plan-price.test.ts
 src/lib/billing/talent-plan-state.test.ts
+src/lib/billing/talent-plan-text-es.static.test.ts
 src/lib/billing/upgrade-outcome.test.ts
 src/lib/catalog/entitlement-credits.test.ts
 src/lib/client-hub/hub-money-format.static.test.ts
@@ -72,6 +77,7 @@ src/lib/payments/seller-currency-messages.test.ts
 src/lib/platform/plan-labels.test.ts
 src/lib/pos/draft-variant-price.test.ts
 src/lib/pos/pos-enabled.test.ts
+src/lib/pricing/discount-status.test.ts
 src/lib/pricing/interval-pricing.test.ts
 src/lib/pricing/pricing-cta-href.test.ts
 src/lib/promos/booking-quote.server.test.ts

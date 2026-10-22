@@ -18,6 +18,7 @@ import { FloorBoard } from "@/components/admin/floor/FloorBoard";
 import type { FloorBoardCopy } from "@/components/admin/floor/floor-copy";
 import type { FloorActions, FloorBoardData } from "@/components/admin/floor/floor-types";
 
+import { reservationsCancel, reservationsMarkNoShow } from "./actions";
 import { floorCreateReservation, floorLoadReserveTimes } from "../pos/floor-actions";
 import { floorJoinWaitlist, floorLeaveWaitlist, floorNotifyWaitlist, floorSeatWaitlist } from "../pos/floor-waitlist";
 import { tablesCloseVisit, tablesResetTable, tablesSeatParty, visitChangeServer, visitMergeChecks, visitTransfer } from "../tables/actions";
@@ -35,6 +36,8 @@ const ACTIONS: FloorActions = {
   leaveWaitlist: (input) => floorLeaveWaitlist(input),
   loadReserveTimes: (input) => floorLoadReserveTimes(input),
   createReservation: (input) => floorCreateReservation(input),
+  markNoShow: (input) => reservationsMarkNoShow(input),
+  cancelReservation: (input) => reservationsCancel(input),
 };
 
 export function LiveFloorClient(props: {

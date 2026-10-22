@@ -1,3 +1,4 @@
+import { isPlaceholderDisplayName } from "./talent-display-name";
 import "server-only";
 
 /**
@@ -80,7 +81,7 @@ export async function writeTalentProfileFromBrief(input: {
 
   // ── profile row ───────────────────────────────────────────────────────────
   const displayName = input.displayNameFallback?.trim() || stringFact(brief, "person.professional_name") || stringFact(brief, "person.name") || "";
-  const { data: existing, error: existingErr } = await admin.from("talent_profiles").select("id, profile_code").eq("user_id", input.userId).is("deleted_at", null).maybeSingle();
+  const { data: existing, error: existingErr } = await admin.from("talent_profiles").select("id, profile_code, display_name").eq("user_id", input.userId).is("deleted_at", null).maybeSingle();
   if (existingErr) {
     logServerError("onboarding.talentWriter.lookup", existingErr);
     result.wrote.profile = "failed";
@@ -128,6 +129,12 @@ export async function writeTalentProfileFromBrief(input: {
   const bioPlan = planBios(bioFacts, input.locale);
 
   const patch: Record<string, unknown> = {};
+  // A profile that already exists (created by sign-up before the wizard) keeps a
+  // blank or placeholder name unless the wizard's name replaces it; the "ready"
+  // check then looks for a name the page never printed (talent:name_missing).
+  if (existing?.id && displayName && isPlaceholderDisplayName(existing.display_name as string | null | undefined)) {
+    patch.display_name = displayName;
+  }
   if (city) patch.home_city_text = city;
   if (country) patch.home_country_text = countryForStorage(country);
   if (bioPlan.base) patch.short_bio = bioPlan.base.text;

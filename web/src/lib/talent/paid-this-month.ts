@@ -1,32 +1,21 @@
 import type { TalentEarnings } from "@/lib/talent/earnings-types";
+import { collectedForMonth, currentCollectedMonth } from "@/lib/talent/collected-month";
 
 export type PaidThisMonth = { totalCents: number; count: number; currency: string };
 
 /**
- * "Paid this month" for the talent Today hero — derived from REAL earnings
- * rows (status='paid' with a payoutDate in the current calendar month),
- * matching the Money page's data source. Returns 0 when there are no real
- * paid bookings, so a talent with no history sees an honest €0 instead of the
- * old hard-coded demo fixture.
+ * "Collected this month" for the talent Today hero. Delegates to the SAME aggregate the Money
+ * page uses (`collectedForMonth`), for the same month key in the talent's timezone, so Hoy and
+ * Dinero always agree. (It used to sum only payout-paid rows by UTC payoutDate, which read $0
+ * for cash / transfer / not-yet-paid-out work while Money showed $4,300.)
  *
- * `now` is injectable for testing (default: current date).
+ * `now` and `timeZone` are injectable for testing.
  */
 export function computePaidThisMonth(
   earnings: TalentEarnings,
   now: Date = new Date(),
+  timeZone?: string | null,
 ): PaidThisMonth {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
-  let totalCents = 0;
-  let count = 0;
-  for (const row of earnings.rows) {
-    if (row.status !== "paid" || !row.payoutDate) continue;
-    const d = new Date(row.payoutDate);
-    if (Number.isNaN(d.getTime())) continue;
-    if (d.getUTCFullYear() === y && d.getUTCMonth() === m) {
-      totalCents += row.netCents;
-      count += 1;
-    }
-  }
-  return { totalCents, count, currency: earnings.totals.currency || "USD" };
+  const c = collectedForMonth(earnings, currentCollectedMonth(now, timeZone));
+  return { totalCents: c.collectedCents, count: c.collectedCount, currency: c.currency };
 }

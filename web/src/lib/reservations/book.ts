@@ -48,6 +48,8 @@ export type BookRow = {
    * EARLIER party at a table from the one sitting there now.
    */
   seatedAt?: Date | null;
+  /** The contact the booking was made with. Optional: the desk's decisions never read it. */
+  holderEmail?: string | null;
 };
 
 export type BookEntry = BookRow & {

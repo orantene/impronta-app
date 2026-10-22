@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { FlowLocale } from "@/lib/onboarding/flow";
-import { urlWithStep } from "@/lib/onboarding/step-url";
+import { planStepSync, stepForPopTarget, urlWithStep, WIZARD_GOTO_EVENT } from "@/lib/onboarding/step-url";
 import type { OnboardingChoice } from "@/lib/onboarding/module-state";
 
 import type { PlanIntent } from "@/lib/onboarding/plan-intent";
@@ -36,12 +36,41 @@ export function StartFlow({
     }
   }, []);
   // TUL-812: mirror the wizard's step into ?step= (the module marks its root with data-onboarding-step).
+  // Forward steps push a history entry so the browser Back button walks the wizard back;
+  // the saved progress (server side) restores the step and the draft after a refresh.
   useEffect(() => {
+    let stack: string[] = [];
+    const currentStep = () => document.querySelector("[data-onboarding-step]")?.getAttribute("data-onboarding-step") ?? null;
     const sync = () => {
       try {
-        const step = document.querySelector("[data-onboarding-step]")?.getAttribute("data-onboarding-step");
+        const step = currentStep();
+        const plan = planStepSync(stack, step);
+        stack = plan.stack;
+        if (plan.op === "back") {
+          window.history.back();
+          return;
+        }
+        if (plan.op === "none") return;
         const next = urlWithStep(window.location.href, step);
-        if (next !== window.location.href) window.history.replaceState(window.history.state, "", next);
+        if (next === window.location.href) return;
+        if (plan.op === "push") window.history.pushState(window.history.state, "", next);
+        else window.history.replaceState(window.history.state, "", next);
+      } catch {
+        /* the wizard works without the URL */
+      }
+    };
+    const onPop = () => {
+      try {
+        const current = currentStep();
+        const target = new URL(window.location.href).searchParams.get("step");
+        const to = stepForPopTarget(current, target);
+        if (to) {
+          const at = stack.lastIndexOf(to);
+          stack = at >= 0 ? stack.slice(0, at + 1) : [...stack, to];
+          window.dispatchEvent(new CustomEvent(WIZARD_GOTO_EVENT, { detail: { step: to } }));
+        } else if (current && target !== current) {
+          window.history.replaceState(window.history.state, "", urlWithStep(window.location.href, current));
+        }
       } catch {
         /* the wizard works without the URL */
       }
@@ -49,7 +78,11 @@ export function StartFlow({
     sync();
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-onboarding-step"] });
-    return () => observer.disconnect();
+    window.addEventListener("popstate", onPop);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("popstate", onPop);
+    };
   }, []);
   return (
     <OnboardingModule

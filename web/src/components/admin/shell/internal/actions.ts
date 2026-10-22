@@ -32,12 +32,15 @@ import {
   assignTaxonomyTermToProfile,
   resolveTenantTalentTypeTermId,
 } from "@/lib/talent-taxonomy-service";
+import { createClient } from "@/lib/supabase/server";
+import { readJoinTerms, type JoinTermsInput, type JoinTermsOutcome } from "@/lib/service-hub/join-terms";
+import { loadJoinTermsContext, proposeTermsOnJoin } from "@/lib/service-hub/join-terms.server";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Shared result type ──────────────────────────────────────────────────────
 
 export type ActionResult =
-  | { ok: true; talentProfileId?: string; warnings?: string[] }
+  | { ok: true; talentProfileId?: string; warnings?: string[]; terms?: JoinTermsOutcome }
   | { ok: false; error: string };
 
 // ── Add Talent (NewTalentDrawer) ────────────────────────────────────────────
@@ -76,6 +79,8 @@ const addTalentSchema = z.object({
  */
 export async function addTalentToRoster(
   input: z.input<typeof addTalentSchema>,
+  /** TUL-1476: the owner's proposed terms for the new person (null = send none). */
+  terms: JoinTermsInput | null = null,
 ): Promise<ActionResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
@@ -115,6 +120,12 @@ export async function addTalentToRoster(
   // ── Seat limit ─────────────────────────────────────────────────────────────
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // TUL-1476: invalid terms are refused before anything is written.
+  const termsCtx = terms ? await loadJoinTermsContext(admin, scope.tenantId, session.user.id) : null;
+  if (terms && termsCtx && readJoinTerms(terms, termsCtx.defaultModel).kind === "invalid") {
+    return { ok: false, error: "Check the terms: the share or rent is not valid." };
+  }
 
   const seats = await checkRosterSeatAvailability(admin, scope.tenantId, 1);
   if (!seats.ok) return { ok: false, error: seats.message };
@@ -237,9 +248,22 @@ export async function addTalentToRoster(
     }
   }
 
+  // TUL-1476: propose the terms now the roster row exists (the RPC needs it). Pending until
+  // the talent accepts; never blocks the add.
+  const termsOutcome: JoinTermsOutcome =
+    terms && termsCtx
+      ? await proposeTermsOnJoin(await createClient(), {
+          tenantId: scope.tenantId,
+          talentProfileId,
+          path: "direct_add",
+          input: terms,
+          defaultModel: termsCtx.defaultModel,
+        })
+      : "skipped";
+
   revalidatePath(`/${d.tenantSlug}/admin/roster`, "page");
 
-  return { ok: true as const, talentProfileId, warnings };
+  return { ok: true as const, talentProfileId, warnings, terms: termsOutcome };
 }
 
 // ── Create Draft (autosave — first blur) ───────────────────────────────────────

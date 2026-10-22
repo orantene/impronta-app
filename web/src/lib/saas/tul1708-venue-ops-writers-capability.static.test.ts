@@ -33,7 +33,10 @@ test("tables and preparation: the wrapper forwards the capability and every call
     assert.match(src, /requireWorkspaceStaffAction\(\{ capability \}\)/, f);
     const calls = src.match(/await staff\(([^)]*)\)/g) ?? [];
     assert.ok(calls.length > 0, f);
-    for (const c of calls) assert.equal(c, 'await staff("operate_venue")', `${f}: ${c}`);
+    // TUL-1838: tablesCancelVisit voids a check, so it is manager-tier (the one allowed exception).
+    const money = calls.filter((c) => c === 'await staff("booking.payment.request")');
+    assert.equal(money.length, f.endsWith("/tables/actions.ts") ? 1 : 0, `${f}: manager-tier calls`);
+    for (const c of calls.filter((c) => !money.includes(c))) assert.equal(c, 'await staff("operate_venue")', `${f}: ${c}`);
   }
 });
 
@@ -46,7 +49,7 @@ test("floor: the reserve-times read is a view, the reservation write is operate_
 
 test("reservations desk: seating a booking and a walk-in need operate_venue", () => {
   const src = read(`${ADMIN}/reservations/actions.ts`);
-  assert.equal((src.match(/requireWorkspaceStaffAction\(\{ capability: "operate_venue" \}\)/g) ?? []).length, 2);
+  assert.equal((src.match(/requireWorkspaceStaffAction\(\{ capability: "operate_venue" \}\)/g) ?? []).length, 3); // seating, walk-in, and the no-show / cancel desk writer (TUL-1838 follow-up)
 });
 
 test("projects counter: collect and receipt lookup name booking.payment.request (money)", () => {

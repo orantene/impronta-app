@@ -36,6 +36,7 @@ export default async function PlatformTalentGetFoundPage() {
     {
       displayName: profile.displayName,
       tradeLabel: profile.primaryTypeLabel,
+      tradeLabelEs: profile.primaryTypeLabelEs,
       homeCity: profile.homeCity,
       siteUrl,
       bookingUrl: siteUrl ? `${siteUrl}#book` : null,

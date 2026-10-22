@@ -23,6 +23,7 @@ src/lib/directory/filter-cap.test.ts
 src/lib/directory/headline-price.test.ts
 src/lib/directory/hub-city-backfill-guards.static.test.ts
 src/lib/directory/humanize-enum-label.test.ts
+src/lib/directory/live-gate-index-rows.test.ts
 src/lib/directory/location-facets.test.ts
 src/lib/directory/pagination.test.ts
 src/lib/directory/portfolio-boost.test.ts

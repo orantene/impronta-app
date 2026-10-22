@@ -37,7 +37,7 @@ import {
 } from "../pos/pos-classes";
 
 import { floorRefusalText, type FloorBoardCopy } from "./floor-copy";
-import { isWaiting, tableCode, type FloorBookEntry } from "./floor-model";
+import { tableCode, type FloorBookEntry } from "./floor-model";
 import type { FloorBoardProps, FloorOutcome, FloorWaitlistEntry } from "./floor-types";
 import { FloorDialogsHost } from "./FloorDialogsHost";
 import { FloorLegend, FloorList, FloorTiles, FloorTimeline } from "./FloorViews";
@@ -49,6 +49,7 @@ export type FloorOverlay =
   | { kind: "seat"; table: FloorTable | null; entry: FloorBookEntry | null; waitlist?: FloorWaitlistEntry | null }
   | { kind: "walk-in" }
   | { kind: "waiting" }
+  | { kind: "booking"; entry: FloorBookEntry }
   | { kind: "move"; table: FloorTable }
   | { kind: "merge"; table: FloorTable }
   | { kind: "server"; table: FloorTable }
@@ -150,10 +151,13 @@ export function FloorBoard(props: FloorBoardProps) {
   }
 
   function pickEntry(entry: FloorBookEntry) {
-    if (isWaiting(entry)) {
-      setOverlay({ kind: "waiting" });
-      return;
-    }
+    // TUL-1757: every booking opens ITS OWN detail (seat / no-show / cancel). A late party with
+    // no table used to open the walk-in WAITING list, which is a different, empty list.
+    setOverlay({ kind: "booking", entry });
+  }
+
+  /** The detail sheet's Seat: the seating sheet, on the booking's table when it has one. */
+  function seatEntry(entry: FloorBookEntry) {
     const table = entry.spaceCode ? (data.tables.find((t) => tableCode(t) === entry.spaceCode) ?? null) : null;
     setOverlay({ kind: "seat", table, entry });
   }
@@ -304,7 +308,7 @@ export function FloorBoard(props: FloorBoardProps) {
         onClose={close}
         onSeat={seat}
         onOpenWalkIn={() => setOverlay({ kind: "walk-in" })}
-        onSeatEntry={(entry) => setOverlay({ kind: "seat", table: null, entry })}
+        onSeatEntry={seatEntry}
         onSeatWaitlist={(entry) => setOverlay({ kind: "seat", table: null, entry: null, waitlist: entry })}
         onSelect={(spaceId) => {
           setSelectedId(spaceId);

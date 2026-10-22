@@ -48,6 +48,7 @@ import {
 import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PromoCodeInput } from "@/components/billing/promo-code-input";
+import { useTalentPlanChange } from "@/components/billing/use-talent-plan-change";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 import { TierIntervalToggle, planYearlyPrice, useYearlyPlans, type TierInterval } from "./tier-interval-toggle";
@@ -126,7 +127,7 @@ export function TalentTierCompareDrawer() {
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-tier-compare";
-  const current = state.talentTier;
+  const current = bridgeTalentSelfProfile?.talentTier ?? state.talentTier;
 
   return (
     <DrawerShell
@@ -328,6 +329,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   useEffect(() => {
     setUrlPromo(readPromoCodeFromUrl());
   }, []);
+  const planChange = useTalentPlanChange(tenantSlug ?? null, appliedCode ?? urlPromo);
   // TUL-1297: monthly / yearly switch, shown only when the catalog has a yearly price.
   const [interval, setBillingInterval] = useState<TierInterval>("month");
   const yearlyPlans = useYearlyPlans();
@@ -343,6 +345,8 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       setError(null);
       try {
         const result = await startTalentUpgrade(planKey, tenantSlug, appliedCode ?? urlPromo, null, interval);
+        // TUL-831/833: a paying talent confirms in-app (proration preview + promo), not in the Stripe portal.
+        if (result.ok && result.planChange) return planChange.open(result.planChange);
         if (result.ok) {
           window.location.assign(result.redirectUrl);
           return;
@@ -408,11 +412,8 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       <div className="mt-2 text-[12px] leading-[1.5] text-admin-ink-muted">
         {t("dashboard.talentDrawers.premiumPages.upgradeNote")}
       </div>
-      {error && (
-        <div className="mt-2 text-[12.5px] leading-[1.5] text-admin-orange">
-          {error}
-        </div>
-      )}
+      {error && <div className="mt-2 text-[12.5px] leading-[1.5] text-admin-orange">{error}</div>}
+      {planChange.modal}
     </div>
   );
 }

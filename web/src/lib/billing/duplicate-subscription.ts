@@ -40,3 +40,18 @@ export type PlanChangeTarget = { planKey: string; interval: "month" | "year" };
 export function planChangeTarget(planKey: string, interval: unknown): PlanChangeTarget {
   return { planKey, interval: interval === "year" ? "year" : "month" };
 }
+
+/**
+ * TUL-1835: the DB row alone is not enough (an abandoned or racing checkout can
+ * leave a live Stripe subscription the row never saw). True when any Stripe
+ * subscription on the customer is a live talent plan.
+ */
+export function hasLiveTalentStripeSubscription(
+  subs: ReadonlyArray<{ status?: string | null; metadata?: Record<string, string> | null }>,
+): boolean {
+  return subs.some((s) => {
+    if (!s.status || !BLOCKING.has(s.status)) return false;
+    const m = s.metadata ?? {};
+    return m.checkout_type === "talent_subscription" || (m.plan_key ?? "").startsWith("talent_");
+  });
+}

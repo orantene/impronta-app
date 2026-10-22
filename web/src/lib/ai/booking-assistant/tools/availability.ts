@@ -96,12 +96,14 @@ export function availabilityReplyText(result: AvailabilityResult, locale: string
   const es = isEs(locale);
   if (result.kind === "times") {
     const list = result.starts.map((s) => formatOfferedTime(s, result.timezone, locale)).join(" | ");
-    return es ? `Estos horarios estan libres: ${list}. Elige uno para apartarlo.` : `These times are open: ${list}. Pick one to hold it.`;
+    // "10:00 a.m." already ends the sentence; never print "a.m..".
+    const end = list.endsWith(".") ? "" : ".";
+    return es ? `Estos horarios están libres: ${list}${end} Elige uno para apartarlo.` : `These times are open: ${list}${end} Pick one to hold it.`;
   }
   if (result.kind === "none") {
     return es
-      ? "No veo horarios libres en los proximos dias. Una persona del equipo te ayuda a encontrar uno en este chat."
+      ? "No veo horarios libres en los próximos días. Una persona del equipo te ayuda a encontrar uno en este chat."
       : "I do not see open times in the next few days. A person on the team will help you find one in this chat.";
   }
-  return es ? "Una persona del equipo lo toma desde aqui y te responde en este chat." : "A person on the team will take it from here and reply in this chat.";
+  return es ? "Una persona del equipo lo toma desde aquí y te responde en este chat." : "A person on the team will take it from here and reply in this chat.";
 }

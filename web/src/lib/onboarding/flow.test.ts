@@ -7,6 +7,7 @@ import {
   defaultFlowLocale,
   flowLocaleFromPath,
   flowStepOf,
+  flowProgressLine,
   flowSubLabel,
   flowUrl,
   langQueryForStartAfterDefaultLocaleStrip,
@@ -100,5 +101,7 @@ test("TUL-813: email and code are named sub-steps of 4, the total never changes"
   assert.equal(flowSubLabel("readyToBuild", "en"), null);
   assert.equal(flowSubLabel("save", "en"), "YOUR ACCOUNT");
   assert.equal(flowSubLabel("code", "es"), "CÓDIGO DEL CORREO");
+  assert.equal(flowProgressLine("save", "es"), "TU INICIO · TU CUENTA");
+  assert.equal(flowProgressLine("readyToBuild", "en"), "YOUR START · 4/4");
   assert.equal(FLOW_TOTAL, 4);
 });

@@ -19,6 +19,7 @@
  * server's reading of `?d=` seeds it -- see the drawer-state comment below.
  */
 
+import { discountStatus } from "@/lib/pricing/discount-status";
 import * as React from "react";
 
 import { useT } from "@/i18n/use-t";
@@ -79,8 +80,11 @@ export function DiscountsView({
     ? (discounts.find((d) => d.id === usageId) ?? null)
     : null;
 
-  const activeCodes = discounts.filter((d) => d.isActive);
-  const archivedCodes = discounts.filter((d) => !d.isActive);
+  // TUL-1860: status comes from active + date window (same rule as checkout), not the flag alone.
+  const [nowMs] = React.useState(() => Date.now());
+  const activeCodes = discounts.filter((d) => discountStatus(d, nowMs) !== "archived");
+  const liveCount = discounts.filter((d) => discountStatus(d, nowMs) === "active").length;
+  const archivedCodes = discounts.filter((d) => discountStatus(d, nowMs) === "archived");
   const activeGrants = accountDiscounts.filter((d) => d.status === "active");
   const endedGrants = accountDiscounts.filter((d) => d.status !== "active");
 
@@ -108,7 +112,7 @@ export function DiscountsView({
       <SectionLabel
         title={t(`${P}.activeCodesTitle`)}
         hint={interpolate(t(`${P}.activeCodesHint`), {
-          active: activeCodes.length,
+          active: liveCount,
           total: discounts.length,
         })}
       />

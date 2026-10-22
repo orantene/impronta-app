@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { translatorFor } from "@/i18n/translator-for";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
-import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, flowSubLabel, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
+import { CHOOSE_COPY, FLOW_TOTAL, flowProgressLine, flowShowsCounter, flowStepOf, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
 import type { VisualDirection } from "@/lib/onboarding/module-state";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
@@ -50,6 +50,7 @@ import { ChooseStep } from "./steps/choose-step";
 import { SetupStep } from "./steps/setup-step";
 import { loadOnboardingSetup, saveOnboardingSetup, saveOnboardingTimezone, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
 import type { Essentials } from "@/lib/onboarding/essentials";
+import { useWizardGoto } from "./use-wizard-goto";
 import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
@@ -210,7 +211,7 @@ export function OnboardingModule({
     const to = BACK[state.step];
     if (to) void saveOnboardingStep({ step: to, locale });
   }, [state.step, locale]);
-
+  useWizardGoto(isPage, (step) => { dispatch({ type: "toStep", step }); void saveOnboardingStep({ step, locale }); });
   // Phase 3 · the card. Runs the understand step once the words are sent
   // (reading screen), or reloads the card from the brief on resume.
   const understoodTrackedRef = useRef(false);
@@ -282,9 +283,9 @@ export function OnboardingModule({
     });
   }, [state.step, state.understanding, applyCard]);
 
-  // 1B step 3: the setup screen's prefill (saved record, AI-read services or a trade pack).
+  // 1B step 3 (and the review): the setup prefill (saved record, AI-read services or a trade pack).
   useEffect(() => {
-    if (state.step !== "setup" || setupData) return;
+    if ((state.step !== "setup" && state.step !== "readyToBuild") || setupData) return;
     let cancelled = false;
     void loadOnboardingSetup().then((r) => {
       if (!cancelled && r.ok) setSetupData(r.setup);
@@ -563,7 +564,7 @@ export function OnboardingModule({
     );
   } else if (state.step === "setup") {
     body = setupData ? (
-      <SetupStep locale={locale} setup={setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
+      <SetupStep locale={locale} setup={savedSetup ? { ...setupData, essentials: savedSetup, saved: true } : setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
     ) : (
       <div data-testid="onb-setup-loading"><OnboardingStepSkeleton /></div>
     );
@@ -586,6 +587,7 @@ export function OnboardingModule({
         ageRequiredNotice={ageRequired}
         setupLines={reviewSetupLines(savedSetup ?? setupData?.essentials ?? null, locale)}
         locale={locale}
+        onEditSetup={() => { dispatch({ type: "toStep", step: "setup" }); void saveOnboardingStep({ step: "setup", locale }); }}
         onChangeTimezone={(zone) => {
           const cur = savedSetup ?? setupData?.essentials ?? null;
           if (!cur) return;
@@ -714,7 +716,7 @@ export function OnboardingModule({
               ))}
             </div>
             <p className="mt-2 text-[0.6875rem] font-semibold tracking-[0.08em]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-step-label">
-              {CHOOSE_COPY[locale].progress(flowN)}{flowSubLabel(state.step, locale) ? ` · ${flowSubLabel(state.step, locale)}` : ""} <span className="sr-only">{stepLabel}</span>
+              {flowProgressLine(state.step, locale)}{flowShowsCounter(state.step) ? <span className="sr-only"> {stepLabel}</span> : null}
             </p>
           </div>
           <div className="flex-1 pt-6">{body}</div>

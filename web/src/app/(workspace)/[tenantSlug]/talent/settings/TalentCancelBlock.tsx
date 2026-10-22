@@ -15,6 +15,7 @@
  * (local state) and is re-confirmed by the next summary load.
  */
 
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { useState, useTransition } from "react";
 import { cancelTalentPlan, resumeTalentPlan } from "./stripe-talent-actions";
 import {
@@ -35,9 +36,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 function formatDate(iso: string | null, es: boolean): string | null {
   if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString(es ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+  return formatPeriodDate(iso, es ? "es" : "en");
 }
 
 const btn = (primary: boolean, destructive = false): React.CSSProperties => ({

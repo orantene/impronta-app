@@ -47,6 +47,7 @@ import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { writeGuardedTransition } from "@/lib/bookings/transaction-transition-write";
+import { transactionPrincipalCents } from "@/lib/orders/price/rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -899,6 +900,7 @@ export async function markPaid(
         payerUserId: result.data.payerUserId,
         payerEmail: result.data.payerEmail,
         depositAmountCents: result.data.grossAmountCents,
+        principalCents: transactionPrincipalCents(depositAmounts(result.data)),
         currency: result.data.currency,
         paidAt: result.data.paidAt,
       });
@@ -919,6 +921,7 @@ export async function markPaid(
         inquiryId: result.data.sourceInquiryId ?? null,
         bookingId: result.data.bookingId,
         depositCents: result.data.grossAmountCents,
+        principalCents: transactionPrincipalCents(depositAmounts(result.data)),
         currency: result.data.currency,
       });
     }
@@ -1716,6 +1719,11 @@ async function emitTransactionEvent(
 }
 
 const VALID_PAYOUT_RECEIVER_KINDS: readonly string[] = ["agency", "admin", "coordinator", "talent"];
+
+/** Display-only: the amounts of a paid deposit row, for the emails' balance (TUL-1305). */
+function depositAmounts(t: BookingTransaction): { grossCents: number; netCents: number; feeNetted: boolean } {
+  return { grossCents: t.grossAmountCents, netCents: t.netAmountCents, feeNetted: t.platformFeeBasisPoints > 0 };
+}
 
 function parsePayoutReceiverKind(raw: string | null): PayoutReceiverKind | null {
   if (raw === null) return null;
