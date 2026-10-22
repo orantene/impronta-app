@@ -23,13 +23,21 @@ export async function loadPublicBookableOfferings(args: {
   talentProfileId?: string | null;
   locale?: string;
   host?: { kind: string; tenantId?: string | null };
+  /**
+   * TUL-1471: offerings of a workspace's roster talent that an INSTANT hub entry sells. They belong to
+   * the talent, not the workspace, so the tenant filter alone drops them and the widget could not book
+   * a hub entry. They still pass the sellable scope and the same booking-mode resolver as the rest.
+   */
+  extraOfferingIds?: readonly string[];
 }): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null }>> {
   if (!args.tenantId && !args.talentProfileId) return [];
   try {
     const admin = createServiceRoleClient();
     if (!admin) return [];
     let query = scopeToSellableOfferings(admin.from("talent_offerings").select("*"), "guest_request");
-    if (args.tenantId) query = query.eq("tenant_id", args.tenantId);
+    const extraIds = (args.extraOfferingIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    if (args.tenantId && extraIds.length > 0) query = query.or(`tenant_id.eq.${args.tenantId},id.in.(${extraIds.join(",")})`);
+    else if (args.tenantId) query = query.eq("tenant_id", args.tenantId);
     if (args.talentProfileId) {
       query = query.eq("talent_profile_id", args.talentProfileId);
     }

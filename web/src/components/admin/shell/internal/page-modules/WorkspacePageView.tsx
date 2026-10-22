@@ -139,6 +139,8 @@ type GroupId =
   // Industry and words: the sixteen presets. Sits above appointments
   // because the preset supplies the nouns that screen then uses.
   | "industry"
+  // TUL-1474: "How you work with people" has its own entry in the Settings nav.
+  | "work-style"
   | "pos"
   | "appointments"
   | "pricing-defaults"
@@ -157,7 +159,7 @@ type GroupId =
 
 /** Every group `?focus=` may open (the ids above, spelled once for the URL check). */
 const FOCUSABLE_GROUPS: readonly GroupId[] = [
-  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "layouts", "service-periods", "prep-stations", "industry", "pos",
+  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "layouts", "service-periods", "prep-stations", "industry", "work-style", "pos",
   "appointments", "pricing-defaults", "domain", "branding", "team", "roles-limits", "roster-fields",
   "registration", "discover", "compliance", "payments", "integrations", "email", "advanced",
 ];
@@ -404,8 +406,6 @@ export function WorkspacePageView() {
                 max-lines cap. */}
             <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
             {isOwner ? <HowYouWorkCard /> : null}
-            {/* TUL-1474: owner AND admin may change the work style (canSetWorkStyle); the row itself re-checks on the server. */}
-            {isAdmin ? <WorkStyleSettingsRow /> : null}
             {/* TUL-1374: door to Settings > Friends collective (page + actions re-check the role). */}
             {isAdmin ? <CollectiveSettingsRow /> : null}
             {/* Owner-only, and the ONLY caller of `setRunsEvents`. */}
@@ -530,6 +530,21 @@ export function WorkspacePageView() {
           {
             title: t("dashboard.adminWorkspace.industry.label"),
             desc: t("dashboard.adminWorkspace.industry.desc"),
+          },
+        ],
+      },
+      {
+        // TUL-1474: its own nav entry (owner or admin), so it is found without opening Espacio.
+        id: "work-style",
+        label: t("dashboard.adminWorkspace.workStyle.label"),
+        desc: t("dashboard.adminWorkspace.workStyle.desc"),
+        visible: isAdmin,
+        rows: [],
+        extra: <WorkStyleSettingsRow />,
+        extraSearch: [
+          {
+            title: t("dashboard.adminWorkspace.workStyle.label"),
+            desc: t("dashboard.adminWorkspace.workStyle.desc"),
           },
         ],
       },

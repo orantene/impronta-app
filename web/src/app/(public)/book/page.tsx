@@ -85,7 +85,12 @@ export default async function BookPage({
     }
   }
 
+  const rosterAdmin = host.kind === "agency" && tenantId ? createServiceRoleClient() : null;
+  // TUL-1471: the owner's hub entries load first; an INSTANT one adds its offering to the widget's list.
+  const hub = rosterAdmin && host.kind === "agency" ? await loadPublicHub(rosterAdmin, tenantId) : null;
+  const hubBookIds = (hub?.entries ?? []).flatMap((e) => (e.cta === "book" && e.bookOfferingId ? [e.bookOfferingId] : []));
   const offerings = await loadPublicBookableOfferings({
+    extraOfferingIds: hubBookIds,
     tenantId: tenantId || null,
     talentProfileId: talentId,
     locale,
@@ -102,11 +107,9 @@ export default async function BookPage({
   const guestChrome = await loadGuestInstantChrome(tenantId || null);
   // TUL-1372: roster services (accepted listings) of an AGENCY workspace, request-only. The tenant is
   // the public host's resolved tenant, never a request parameter. Fails closed (empty).
-  const rosterAdmin = host.kind === "agency" && tenantId ? createServiceRoleClient() : null;
   const allRosterItems = rosterAdmin && host.kind === "agency" ? await loadWorkspaceRosterServices(rosterAdmin, tenantId) : [];
   // TUL-1471: the owner's grouped hub entries (request-only) replace the loose rows they contain, so
   // a service never shows twice. Listings still waiting in the review queue stay as loose rows.
-  const hub = rosterAdmin && host.kind === "agency" ? await loadPublicHub(rosterAdmin, tenantId) : null;
   const notInHub = hub ? allRosterItems.filter((i) => !hub.coveredListingIds.has(i.listingId)) : allRosterItems;
   // TUL-861: a service already offered in the bookable list above must not be listed a second time as a request row.
   const bookableIds = new Set(offerings.map((o) => o.id));

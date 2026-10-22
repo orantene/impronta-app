@@ -5553,6 +5553,10 @@
       "wsFieldSettingsDesc": "Sobrescrituras del espacio para el motor de perfiles resuelto",
       "wsTalentCategoriesTitle": "Categorías de Talent",
       "wsTalentCategoriesDesc": "Categorías habilitadas del espacio para la lista y el registro",
+      "workStyle": {
+        "label": "Cómo trabajas con la gente",
+        "desc": "Quién recibe las solicitudes, el precio que ve el cliente y tu parte."
+      },
       "industry": {
         "label": "Industria y palabras",
         "desc": "Elige qué eres. Define cómo se llaman las cosas en tu sitio, tu botón principal y cómo saluda el chat. Nada queda bloqueado."

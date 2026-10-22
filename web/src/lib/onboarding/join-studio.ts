@@ -18,6 +18,19 @@ export type JoinStudioErrorCode =
   | "not_found"
   | "failed";
 
+/**
+ * TUL-1882: what a talent already has with a studio, from its roster rows (every status) and the
+ * count of approved applications. Active = a member, pending = a request already waiting. An approved
+ * application with no roster row at all counts as a member (the row is the thing that lags). A removed or
+ * inactive row means the talent may ask again. Pure.
+ */
+export function existingStudioState(rosterStatuses: readonly string[], approvedApplications: number): "already_member" | "already_pending" | null {
+  if (rosterStatuses.includes("active")) return "already_member";
+  if (rosterStatuses.includes("pending")) return "already_pending";
+  if (rosterStatuses.length === 0 && approvedApplications > 0) return "already_member";
+  return null;
+}
+
 const PLATFORM_APEX = "tulala.digital";
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 const LOCALE_SEGMENTS = new Set(["es", "en"]);
