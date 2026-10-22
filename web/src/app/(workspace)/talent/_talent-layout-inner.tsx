@@ -369,7 +369,7 @@ export async function TalentLayoutInner({
     timed("talent.loadTalentAgencies", () => loadTalentAgencies(talentSelfProfile.id)),
     timed("talent.loadTalentRepresentation", () => loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode)),
     timed("talent.findTenantMembership", () => tenantId ? findTenantMembership(tenantId) : Promise.resolve(null)),
-    timed("talent.loadWorkspaceUnreadCount", () => tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0)),
+    timed("talent.loadWorkspaceUnreadCount", () => tenantId ? withTimeout(loadWorkspaceUnreadCount(tenantId), TALENT_LOADER_BUDGET_MS, 0) : Promise.resolve(0)),
 
     // TUL-387 — talent chrome badge counts (replaces the prior hard-coded zero).
     timed("talent.loadShellCounts", () => tenantId
@@ -386,7 +386,7 @@ export async function TalentLayoutInner({
     // legacy calendar bridge so Today/Calendar stay unchanged.
     timed("talent.loadTalentCalendarEntries", () => talentAgendaV2
       ? Promise.resolve([])
-      : loadTalentCalendarEntries(talentSelfProfile.id)),
+      : withTimeout(loadTalentCalendarEntries(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, [])),
     timed("talent.loadTalentAgendaForLayout", () => talentAgendaV2
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null })),
@@ -419,7 +419,7 @@ export async function TalentLayoutInner({
     // P1 — DB-resolved client field source (wizard/drawer type-specific
     // catalog). Null when every surface is `static` (default). `tenantId` may
     // be null for independent talent — the loader degrades to flags-only.
-    timed("talent.loadClientFieldSource", () => loadClientFieldSource(tenantId)),
+    timed("talent.loadClientFieldSource", () => withTimeout(loadClientFieldSource(tenantId), TALENT_LOADER_BUDGET_MS, null)),
 
     // The talent's OWN languages (primary + secondary, bounded to platform
     // public locales) drive the shell's DashboardLocaleToggle / LanguageMenu.
@@ -433,7 +433,7 @@ export async function TalentLayoutInner({
     // render. Returns [] on any failure, so it never breaks the layout.
     // TUL-675: the theme-update bell is created lazily; make sure it exists BEFORE the bell loads
     // (idempotent, best-effort, never throws), so it shows without opening Mi sitio first.
-    timed("talent.ensureThemeBellThenLoad", () => ensureThemeBellThenLoad(talentSelfProfile.id, readCtx)),
+    timed("talent.ensureThemeBellThenLoad", () => withTimeout(ensureThemeBellThenLoad(talentSelfProfile.id, readCtx), TALENT_LOADER_BUDGET_MS, [])),
 
     // Pro/Portfolio page analytics — profile views + inquiry conversion for the
     // signed-in talent's OWN profile. Scoped by the SESSION user id (the
@@ -458,11 +458,11 @@ export async function TalentLayoutInner({
     timed("talent.getRequestLocale", () => early?.requestLocale ?? getRequestLocale()),
 
     // TUL-392: theme update waiting + site needs publish (Attention signals).
-    timed("talent.loadTalentAttentionSignals", () => loadTalentAttentionSignals(talentSelfProfile.id)),
+    timed("talent.loadTalentAttentionSignals", () => withTimeout(loadTalentAttentionSignals(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, null)),
 
     // Payout country (ISO-2) so the Money arrival text states the documented
     // timing for it. Runs in parallel with the rest; returns null on any failure.
-    timed("talent.resolveTalentPayoutCountry", () => resolveTalentPayoutCountry(talentSelfProfile.id)),
+    timed("talent.resolveTalentPayoutCountry", () => withTimeout(resolveTalentPayoutCountry(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, null)),
   ]);
   perfMark("talent.after-fanout", t0);
 

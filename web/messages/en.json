@@ -20083,6 +20083,7 @@
         "teamOnly": "Only your team sees this",
         "fallback": "fallback: {channel} if away",
         "placeholder": "Write a reply",
+        "placeholderMobile": "Reply…",
         "notePlaceholder": "Write a note for the team",
         "more": "More",
         "attach": "Attach a file",

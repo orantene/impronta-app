@@ -218,6 +218,11 @@ export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "pa
   out.push({ id: "total", label: "Total", value: moneyText(total, currency) });
   const deposit = item.money.depositCents ?? 0;
   if (deposit > 0) out.push({ id: "deposit", label: "Deposit", value: moneyText(deposit, currency) });
+  // The client paid more than the agreed price: the extra is the Tulala service fee, not part of the price.
+  const extraPaid = item.money.paidCents - total;
+  if (item.money.paidCents > 0 && extraPaid > 0) {
+    out.push({ id: "service-fee", label: "Includes Tulala service fee", value: moneyText(extraPaid, currency) });
+  }
   if (item.money.paidCents > 0) {
     out.push({ id: "paid", label: "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
   }
