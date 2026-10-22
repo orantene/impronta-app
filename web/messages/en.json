@@ -363,6 +363,8 @@
         "saveError": "Could not save your review. Please try again.",
         "savedTitle": "Thanks for reviewing {name}.",
         "savedBody": "Your {rating}-star review is now published.",
+        "updatedTitle": "Review updated.",
+        "updatedBody": "Your {rating}-star review has been updated and is live.",
         "done": "Done",
         "yourReview": "Your review",
         "closeReview": "Close review",

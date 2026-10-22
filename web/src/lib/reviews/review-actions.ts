@@ -22,6 +22,7 @@ import {
   requireTalent,
 } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { resolveReviewTenantId } from "@/lib/reviews/resolve-review-tenant";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
@@ -105,21 +106,6 @@ function bookingReviewable(b: BookingRow): boolean {
   });
 }
 
-async function resolveTenantId(
-  supabase: SupabaseClient,
-  tenantSlug: string,
-): Promise<string | null> {
-  const slug = (tenantSlug ?? "").trim();
-  if (!slug) return null;
-  // agencies SELECT is staff-only under RLS; use the SECURITY DEFINER resolver
-  // RPC (granted to authenticated) so a client session can map slug → tenant id.
-  const { data } = await supabase.rpc("resolve_public_tenant_by_slug", {
-    p_slug: slug,
-  });
-  const rows = (data ?? []) as Array<{ tenant_id: string; tenant_slug: string }>;
-  return rows[0]?.tenant_id ?? null;
-}
-
 /**
  * Submit (or edit) a client's review of a talent on a completed booking.
  */
@@ -164,7 +150,7 @@ export async function submitTalentReviewAction(
   const privateNote = privateNoteRaw.length > 0 ? privateNoteRaw : null;
   const anon = s.anon === true;
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
   // Load the booking. RLS already restricts the client to their own bookings,
@@ -331,7 +317,7 @@ export async function loadReviewableBookingsAction(
   if (!auth.ok) return [];
   const { supabase, user } = auth;
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return [];
 
   // RLS scopes agency_bookings to the caller-client. Pull this tenant's rows.
@@ -449,7 +435,7 @@ export async function submitClientReviewAction(
   }
   const cleanBody = (body ?? "").trim().slice(0, 4000);
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
   // Load the booking. (RLS may not scope agency_bookings to a talent, so we
@@ -546,7 +532,7 @@ export async function loadClientReviewablesAction(
   if (!auth.ok) return [];
   const { supabase, user } = auth;
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return [];
 
   const myProfileIds = await callerTalentProfileIds(supabase, user.id);

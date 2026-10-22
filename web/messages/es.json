@@ -363,6 +363,8 @@
         "saveError": "No se pudo guardar tu reseña. Inténtalo de nuevo.",
         "savedTitle": "Gracias por reseñar a {name}.",
         "savedBody": "Tu reseña de {rating} estrellas ya está publicada.",
+        "updatedTitle": "Reseña actualizada.",
+        "updatedBody": "Tu reseña de {rating} estrellas se actualizó y ya está publicada.",
         "done": "Listo",
         "yourReview": "Tu reseña",
         "closeReview": "Cerrar reseña",

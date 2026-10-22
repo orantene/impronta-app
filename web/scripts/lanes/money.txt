@@ -320,8 +320,10 @@ src/lib/reservations/deposit-currency.test.ts
 src/lib/reservations/reserve-table-deposit.test.ts
 src/lib/resources/session-resource-holds.test.ts
 src/lib/reviews/collective-reviews.test.ts
+src/lib/reviews/leave-review-updated-confirmation.static.test.ts
 src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
+src/lib/reviews/resolve-review-tenant.test.ts
 src/lib/reviews/team-studio-private-notes.static.test.ts
 src/lib/rls/staff-permissions-tenant-scope.static.test.ts
 src/lib/saas/capabilityless-staff-guard.static.test.ts
