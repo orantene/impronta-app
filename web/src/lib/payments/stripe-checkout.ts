@@ -138,6 +138,8 @@ export type CheckoutSessionResult =
   | {
       ok: false;
       error: string;
+      /** Stable refusal code when a guard (not Stripe) refused, so callers can show the right sentence. */
+      code?: string;
       /**
        * True when a session MAY exist (network drop, Stripe 5xx, no URL on
        * the response). The caller must not release the hold on that: a retry
@@ -196,7 +198,10 @@ export async function createCheckoutSessionForTransaction(
     const guardFn = deps.currencyGuard ?? ((deps.stripe !== undefined || deps.platform) && !deps.sb ? null : checkTransactionChargeCurrency);
     if (guardFn) {
       const check = await guardFn(deps.sb ?? createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency, locale: input.locale });
-      if (!check.ok) return { ok: false, error: check.message, uncertain: false };
+      if (!check.ok) {
+        logServerError("payments.stripe.chargeCurrencyRefused", `transaction ${input.transactionId}: ${check.code} (${input.currency})`);
+        return { ok: false, error: check.message, code: check.code, uncertain: false };
+      }
     }
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us'). An injected client (tests) is used as-is.

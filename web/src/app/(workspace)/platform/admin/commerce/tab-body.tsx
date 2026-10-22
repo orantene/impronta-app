@@ -10,6 +10,7 @@
  * old URLs redirect here.
  */
 
+import { deactivateExpiredBatch } from "@/lib/pricing/expire-stale-discount";
 import {
   loadProductCatalog,
   loadProductDiscounts,
@@ -95,6 +96,8 @@ export async function TabBody({
       loadAccountDiscounts(),
       loadProductCatalog(),
     ]);
+    // TUL-1860: a code past its end time is switched off at Stripe too (best effort, capped).
+    await deactivateExpiredBatch(discounts);
     const tiers: DiscountTierOption[] = (catalog?.packages ?? [])
       .filter((pkg) => pkg.isActive)
       .flatMap((pkg) =>

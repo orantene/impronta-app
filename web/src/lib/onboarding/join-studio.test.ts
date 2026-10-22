@@ -73,3 +73,11 @@ test("TUL-1862 / TUL-1690: a staging /w link resolves through the env-derived ho
   assert.doesNotMatch(read("src/components/settings/join-studio-copy.ts"), /tulala\.digital/);
   assert.match(read("src/lib/server-actions/join-studio.ts"), /resolveMarketingOrigin\(\)/);
 });
+
+test("TUL-1882: an approved talent gets 'already part of this studio', not a generic failure", () => {
+  const src = read("src/lib/server-actions/join-studio.ts");
+  assert.match(src, /agency_talent_roster/);
+  assert.match(src, /code: "already_member"/);
+  assert.equal(JS_ERRORS.already_member.es, "Ya eres parte de este estudio.");
+  assert.equal(JS_ERRORS.already_member.en, "You're already part of this studio.");
+});

@@ -4,8 +4,8 @@ import { SmartImage } from "@/components/ui/smart-image";
 import type { PublicEntry } from "@/lib/service-hub/public-hub";
 
 const COPY = {
-  es: { heading: "Servicios", request: "Solicitar", from: "Desde", with: "Con" },
-  en: { heading: "Services", request: "Request", from: "From", with: "With" },
+  es: { heading: "Servicios", request: "Solicitar", book: "Reservar", from: "Desde", with: "Con" },
+  en: { heading: "Services", request: "Request", book: "Book", from: "From", with: "With" },
 } as const;
 
 function money(cents: number, currency: string | null, locale: "es" | "en"): string {
@@ -20,15 +20,18 @@ function money(cents: number, currency: string | null, locale: "es" | "en"): str
   }
 }
 
-/** The workspace's hub services, request-only (a visitor asks, never buys here). */
+/** The workspace's hub services, on-request entries ask, instant ones book in the widget. */
 export function PublicHubEntries({
   entries,
   locale,
   requestHref = () => "/contact",
+  bookHref = () => "/book",
 }: {
   entries: readonly PublicEntry[];
   locale: "es" | "en";
   requestHref?: (entry: PublicEntry) => string;
+  /** TUL-1471: where an instant-bookable entry goes (the booking widget), never the enquiry form. */
+  bookHref?: (entry: PublicEntry) => string;
 }) {
   if (entries.length === 0) return null;
   const t = COPY[locale];
@@ -43,7 +46,7 @@ export function PublicHubEntries({
               <h3 className="text-base font-medium">{e.name}</h3>
               {e.who.length > 0 ? <p className="text-sm text-muted-foreground">{t.with} {e.who.join(", ")}</p> : null}
               {e.priceCents != null ? <p className="text-sm">{e.from ? `${t.from} ` : ""}{money(e.priceCents, e.currency, locale)}</p> : null}
-              <Link href={requestHref(e)} className="mt-2 inline-flex min-h-[44px] items-center rounded-full bg-foreground px-4 text-sm font-medium text-background">{t.request}</Link>
+              <Link href={e.cta === "book" ? bookHref(e) : requestHref(e)} className="mt-2 inline-flex min-h-[44px] items-center rounded-full bg-foreground px-4 text-sm font-medium text-background">{e.cta === "book" ? t.book : t.request}</Link>
             </div>
           </li>
         ))}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PublicFooter } from "@/components/public-footer";
@@ -9,6 +10,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
 import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { eventCardHref } from "@/lib/events/event-page-paths";
 import { eventsListMetadata } from "@/lib/seo/event-metadata";
 
 /**
@@ -117,29 +119,30 @@ export default async function PublicEventsPage() {
     // being hidden — it is published, so the venue means people to see it.
     .sort((a, b) => (a.nextAt ?? "9999").localeCompare(b.nextAt ?? "9999"));
 
+  const locale = (await getRequestLocale()).toLowerCase().startsWith("es") ? "es" : "en";
   return (
     <>
       <PublicHeader />
       <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{eventsListMetadata(await getRequestLocale()).title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{eventsListMetadata(locale).title}</h1>
 
         {cards.length === 0 ? (
           <p className="mt-4 text-sm text-black/60">
-            Nothing on sale right now. Check back soon.
+            {locale === "es" ? "No hay nada a la venta por ahora. Vuelve pronto." : "Nothing on sale right now. Check back soon."}
           </p>
         ) : (
           <ul className="mt-6 flex flex-col gap-4">
             {cards.map((e) => (
               <li key={e.id} className="rounded-xl border border-black/10 p-5">
-                <a href={`/events/${e.slug}`} className="block">
+                <Link href={eventCardHref({ slug: e.slug, locale, supportedLocales: workspaceCtx.supportedLocales })} className="block">
                   <div className="text-xs uppercase tracking-wide text-black/50">
-                    {whenLabel(e.nextAt, e.zone)}
+                    {whenLabel(e.nextAt, e.zone, locale)}
                   </div>
                   <h2 className="mt-1 text-lg font-semibold">{e.title}</h2>
                   {e.description ? (
                     <p className="mt-1 line-clamp-2 text-sm text-black/60">{e.description}</p>
                   ) : null}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

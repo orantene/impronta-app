@@ -42,6 +42,8 @@ export type ConfirmationInput = {
   /** Minutes the table is held past the time before it may be released. */
   graceMinutes: number;
   addressLine: string | null;
+  /** The moment the confirmation is built; tests pin it. Defaults to the real clock. */
+  now?: Date;
 };
 
 export type ConfirmationContent = {
@@ -141,7 +143,15 @@ export function buildConfirmation(input: ConfirmationInput): ConfirmationContent
     lines.push(es ? "No hay nada que pagar ahora." : "Nothing to pay now.");
   }
 
-  if (deadline) {
+  // TUL-1879: a deadline already behind us is never printed as a promise.
+  const now = input.now ?? new Date();
+  if (deadline && deadlineInstant.getTime() <= now.getTime()) {
+    lines.push(
+      es
+        ? "Ya no se puede cancelar sin cargo."
+        : "Free cancellation is no longer available.",
+    );
+  } else if (deadline) {
     lines.push(
       es
         ? `Puedes cancelar sin costo hasta el ${deadline.date} a las ${deadline.time}.`

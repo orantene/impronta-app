@@ -37,6 +37,7 @@ import {
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
 import { applyPosCollectiveSplit } from "./collective-split-apply";
+import { recheckLinesSellable } from "./collection-recheck";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
@@ -114,17 +115,6 @@ export async function submitToPreparation(
   return submitOrderToPreparation(admin, input);
 }
 
-/**
- * The order's one booking shell now lives in `lib/orders/booking-shell.ts`,
- * next to nothing in particular and imported by both paths that record money.
- *
- * It was private to this file, and that is exactly how the cash path came to
- * be broken: the card path below called it, the cash branch returned before
- * reaching it, and `settleAtDoor` then inserted a `booking_transactions` row
- * with a null `booking_id` that the scope trigger refused. Sharing it means
- * `settleAtDoor` ensures its own shell and no caller has to remember.
- */
-
 export type StartCollectionResult =
   | {
       ok: true;
@@ -153,7 +143,8 @@ export type StartCollectionResult =
         | "terminal_unavailable"
         | "engine_error"
         | "conflict"
-        | "over_limit";
+        | "over_limit"
+        | "item_unavailable";
       error: string;
       /**
        * What is actually still owed, when the refusal is about the amount.
@@ -237,6 +228,9 @@ export async function startCollection(
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };
   }
+  // TUL-1349: an item switched off or unpublished since it was held must not take money (fail closed).
+  const sellable = await recheckLinesSellable(admin, input.tenantId, row.id);
+  if (!sellable.ok) return sellable;
   const operationKey = (input.idempotencyKey ?? "").trim();
   if (operationKey.length < 8) {
     // Not a refusal an operator can act on, so it does not get operator words.

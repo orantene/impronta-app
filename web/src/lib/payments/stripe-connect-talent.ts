@@ -22,6 +22,7 @@
  * trigger their own onboarding; service-role for engine writes.
  */
 
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import { syncPayoutAccountFromStripe } from "@/lib/payments/payout-account-verification";
 import type Stripe from "stripe";
 import { getStripe, getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
@@ -209,7 +210,7 @@ export async function createOrGetTalentConnectedAccount(
   //    public Tulala page so they don't have to type/hunt for a URL.
   const businessUrl =
     opts.businessUrl ??
-    (tp.profile_code ? `https://tulala.digital/t/${tp.profile_code}` : undefined);
+    (tp.profile_code ? `${resolvePublicRootOrigin()}/t/${tp.profile_code}` : undefined);
 
   // 4. Create the Express account in the payee's country, on the platform the
   //    router picks (MX sellers on the Mexico platform; USDC stays US).

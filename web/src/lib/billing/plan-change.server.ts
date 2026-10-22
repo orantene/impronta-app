@@ -21,6 +21,7 @@ import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 import { TALENT_TIER_SLUG, WORKSPACE_TIER_SLUG } from "@/lib/stripe/price-catalog";
 import type { PlanChangeConfirm, PlanChangePreview } from "./plan-change-policy";
 import { isExistingSubscriptionStatus } from "./subscription-live-status";
+import { cancelPendingPlanChange, loadPendingPlanChange, type PendingPlanChange } from "./plan-change-pending";
 import { clearPendingDowngrade, recordPendingDowngrade, type PendingDowngrade } from "./workspace-downgrade-archive";
 import { cancelWorkspaceSubscriptionAtPeriodEnd } from "@/lib/stripe/workspace-billing";
 import {
@@ -29,7 +30,8 @@ import {
   type WorkspaceDowngradeTarget,
 } from "./workspace-downgrade-stripe";
 
-const TALENT_PLANS = new Set<string>(["talent_pro", "talent_portfolio"]);
+// TUL-831: talent_basic (Free) is a valid TARGET for a talent: "Switch to Free" ends the paid plan at period end.
+const TALENT_PLANS = new Set<string>(["talent_pro", "talent_portfolio", "talent_basic"]);
 const WORKSPACE_PLANS = new Set<string>(["website", "studio", "agency", "network"]);
 
 async function buildRequest(
@@ -56,7 +58,9 @@ async function buildRequest(
   const toInterval = parseBillingInterval(rawInterval);
   const catalog = toCatalogInterval(toInterval);
   const toPriceId =
-    kind === "talent"
+    toPlan === "talent_basic"
+      ? null // Free has no Stripe price
+      : kind === "talent"
       ? await resolveTalentPriceId(toPlan as TalentPlanKey, catalog)
       : await resolveWorkspacePriceId(toPlan as WorkspacePlanKey, catalog);
   return { kind, subjectId, subscriptionId, toPlan, toInterval, toPriceId: toPriceId?.trim() || null, onError: logServerError };
@@ -192,4 +196,42 @@ export async function applyWorkspaceDowngrade(
   });
   if (!out.ok) logServerError("billing.workspaceDowngrade", out.error);
   return out;
+}
+
+async function pendingRequest(kind: "talent" | "workspace", subjectId: string) {
+  const sb = createServiceRoleClient();
+  if (!sb) return { error: "Billing is not available yet." } as const;
+  const read =
+    kind === "talent"
+      ? await sb.from("talent_subscriptions").select("stripe_subscription_id").eq("talent_profile_id", subjectId).maybeSingle()
+      : await sb.from("workspace_subscriptions").select("stripe_subscription_id").eq("tenant_id", subjectId).maybeSingle();
+  if (read.error) logServerError("billing.planChange.pending.row", read.error);
+  const subscriptionId = (read.data as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null;
+  if (!subscriptionId) return { error: "You do not have a paid plan to change yet." } as const;
+  return { kind, subjectId, subscriptionId, onError: logServerError } as const;
+}
+
+/** TUL-831: the scheduled plan change of this subject, read from Stripe (the subscription id comes from our own row). */
+export async function loadPendingPlanChangeFor(
+  kind: "talent" | "workspace",
+  subjectId: string,
+): Promise<{ ok: true; pending: PendingPlanChange | null } | { ok: false; error: string }> {
+  const stripe = getStripe();
+  if (!stripe) return { ok: false, error: "Billing is not available yet." };
+  const req = await pendingRequest(kind, subjectId);
+  if ("error" in req) return { ok: false, error: req.error ?? "Billing is not available yet." };
+  return loadPendingPlanChange(stripe, req);
+}
+
+/** TUL-831: "Cancel change": release the schedule or clear cancel_at_period_end. */
+export async function cancelPendingPlanChangeFor(
+  kind: "talent" | "workspace",
+  subjectId: string,
+): Promise<{ ok: true; hadPending: boolean } | { ok: false; error: string }> {
+  const stripe = getStripe();
+  if (!stripe) return { ok: false, error: "Billing is not available yet." };
+  const req = await pendingRequest(kind, subjectId);
+  if ("error" in req) return { ok: false, error: req.error ?? "Billing is not available yet." };
+  const out = await cancelPendingPlanChange(stripe, req);
+  return out.ok ? out : { ok: false, error: out.error };
 }

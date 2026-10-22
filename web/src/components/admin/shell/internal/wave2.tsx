@@ -26,7 +26,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
-import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
+import { workspaceLiveHost } from "@/lib/saas/workspace-live-url"; import { publicSubdomainHost, resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { useRouter } from "next/navigation"; import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
@@ -1063,7 +1063,7 @@ export function TenantSwitcherDrawer() {
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
               // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
-                ? "tulala.digital"
+                ? resolvePublicRootDomain()
                 : (w.domain ?? workspaceLiveHost({ slug: w.slug, planTier: w.tier, domains: null }));
               const adminUrl = workspaceSwitchAdminUrlForLocation(w.slug);
               return {
@@ -1455,7 +1455,7 @@ export function TalentAgencySwitcherDrawer() {
               const tierPalette = TENANT_TIER_PALETTE[(a.plan as TenantTier) in TENANT_TIER_PALETTE ? a.plan as TenantTier : "free"];
               const isExclusive = a.rosterStatus === "exclusive";
               const initials = a.agencyName.charAt(0).toUpperCase();
-              const domain = `${a.agencySlug}.tulala.digital`;
+              const domain = publicSubdomainHost(a.agencySlug);
 
               return (
                 <button

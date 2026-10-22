@@ -35,15 +35,47 @@ import type Stripe from "stripe";
  * fiftieth customer. `per_customer_limit` was the same promise, unkept for the
  * same reason. The `discount_redemptions` ledger is what makes both answerable.
  *
+ * `eventId` stays in the signature for callers and logs; the ledger key is `redemptionLedgerKey`.
+ *
  * BEST EFFORT, ALWAYS. A ledger write must never 5xx a webhook: Stripe would
  * retry the whole event, and the money-side work above this line already
  * succeeded. Two layers of idempotency stand behind it — this branch is already
  * claimed by the event-level ledger, and the RPC's UNIQUE(stripe_event_id)
  * makes a replay a no-op even if the claim is bypassed.
  */
+/**
+ * TUL-1872: the ledger key is the SUBSCRIPTION + COUPON, not the Stripe event. A code can arrive on three
+ * different events (checkout.session.completed for a new plan, a subscription resync or invoice.payment_succeeded
+ * after an in-app upgrade that adds the code to a live subscription), and a repeating coupon rides every later
+ * renewal invoice. One key per subscription and coupon counts the redemption once whichever event gets here first.
+ */
+export function redemptionLedgerKey(subscriptionId: string, couponId: string): string {
+  return `sub:${subscriptionId}:${couponId}`;
+}
+
+type RedemptionClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
+
+/** Rows written before the key changed are keyed by event id; match them by subscription so they are not counted twice. */
+async function alreadyRecordedForSubscription(
+  sb: RedemptionClient,
+  couponId: string,
+  subscriptionId: string,
+): Promise<boolean> {
+  const disc = await sb.from("product_discounts").select("id").eq("stripe_coupon_id", couponId).maybeSingle();
+  const discountId = (disc.data as { id: string } | null)?.id;
+  if (!discountId) return false;
+  const rows = await sb
+    .from("discount_redemptions")
+    .select("id", { count: "exact", head: true })
+    .eq("discount_id", discountId)
+    .eq("stripe_subscription_id", subscriptionId);
+  return (rows.count ?? 0) > 0;
+}
+
 export async function recordDiscountRedemption(
   subscription: Stripe.Subscription,
   eventId: string,
+  client?: RedemptionClient | null,
 ): Promise<void> {
   try {
     const mirror = extractSubscriptionDiscount(subscription);
@@ -53,12 +85,13 @@ export async function recordDiscountRedemption(
     const talentProfileId = subscription.metadata?.talent_profile_id ?? null;
     if (!tenantId && !talentProfileId) return;
 
-    const sb = createServiceRoleClient();
+    const sb = client ?? createServiceRoleClient();
     if (!sb) return;
+    if (await alreadyRecordedForSubscription(sb, mirror.couponId, subscription.id)) return;
 
     const { data: recorded, error } = await sb.rpc("record_discount_redemption", {
       p_stripe_coupon_id: mirror.couponId,
-      p_stripe_event_id: eventId,
+      p_stripe_event_id: redemptionLedgerKey(subscription.id, mirror.couponId),
       p_subject_type: talentProfileId ? "talent" : "workspace",
       p_tenant_id: tenantId as string,
       p_talent_profile_id: talentProfileId as string,

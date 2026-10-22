@@ -13,6 +13,7 @@ export type JoinStudioErrorCode =
   | "too_many"
   | "no_profile"
   | "already_pending"
+  | "already_member"
   | "exclusive"
   | "not_found"
   | "failed";

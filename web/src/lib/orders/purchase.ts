@@ -220,7 +220,7 @@ export async function createPurchase(
       offerings: catalog.offerings,
       variants: catalog.variants,
       addons: catalog.addons,
-    }), input.tableDeposit);
+    }), input.tableDeposit, input.tableNoDeposit === true);
     // Refuses rather than stamping session ids onto the wrong lines.
     if (priced.ok && priced.lines.length !== input.lines.length) {
       logServerError("orders.createPurchase/lineAlignment", `${priced.lines.length}/${input.lines.length}`);

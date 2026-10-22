@@ -182,7 +182,7 @@ export async function createReservation(
     // and refuses this choice if the offering forbids it. A table with no
     // deposit is not paid online, which is what "in person" means here.
     paymentChoice: tableDeposit ? "deposit" : "in_person",
-    ...(tableDeposit ? { tableDeposit } : {}),
+    ...(tableDeposit ? { tableDeposit } : { tableNoDeposit: true }),
     sourceChannel: "reservation",
     // D1: the venue's configured reservation offering is deliberately not a public menu
     // item (agency_only or public, owner's choice), so it uses its own sellable context: published + approved.

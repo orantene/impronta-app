@@ -13,8 +13,15 @@ export function discountStatus(
   nowMs: number = Date.now(),
 ): DiscountStatus {
   if (!d.isActive) return "archived";
-  if (d.startsAt && new Date(d.startsAt).getTime() > nowMs) return "scheduled";
-  if (d.endsAt && new Date(d.endsAt).getTime() < nowMs) return "expired";
+  // Fail closed: a date we cannot parse never reads as "no limit" (NaN compares false with everything).
+  if (d.startsAt) {
+    const start = new Date(d.startsAt).getTime();
+    if (Number.isNaN(start) || start > nowMs) return "scheduled";
+  }
+  if (d.endsAt) {
+    const end = new Date(d.endsAt).getTime();
+    if (Number.isNaN(end) || end < nowMs) return "expired";
+  }
   return "active";
 }
 
@@ -51,4 +58,23 @@ export function discountWindowError(
 /** One line carrying both languages, for server errors that have no locale at hand. */
 export function bilingualWindowError(key: keyof typeof DISCOUNT_WINDOW_ERRORS): string {
   return `${DISCOUNT_WINDOW_ERRORS[key].en} / ${DISCOUNT_WINDOW_ERRORS[key].es}`;
+}
+
+/** Marker the zod schema puts in an issue message; the action swaps it for the viewer's language. */
+export const WINDOW_ERROR_PREFIX = "window:";
+
+export function windowErrorMessage(
+  key: keyof typeof DISCOUNT_WINDOW_ERRORS,
+  locale: string | null | undefined,
+): string {
+  return DISCOUNT_WINDOW_ERRORS[key][locale?.toLowerCase().startsWith("es") ? "es" : "en"];
+}
+
+/** Turns a schema issue message into user copy in the viewer's locale (other messages pass through). */
+export function localizeWindowIssue(message: string, locale: string | null | undefined): string {
+  if (!message.startsWith(WINDOW_ERROR_PREFIX)) return message;
+  const key = message.slice(WINDOW_ERROR_PREFIX.length);
+  return key in DISCOUNT_WINDOW_ERRORS
+    ? windowErrorMessage(key as keyof typeof DISCOUNT_WINDOW_ERRORS, locale)
+    : message;
 }

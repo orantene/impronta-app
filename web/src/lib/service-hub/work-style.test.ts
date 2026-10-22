@@ -161,3 +161,13 @@ test("the workspace's real trade is read from its own services; a tie or no matc
   assert.equal(tradeFromCategories(["Masaje", null, undefined]), null);
   assert.equal(tradeFromCategories([]), null);
 });
+
+import { tradeFromIndustryPreset } from "./work-style";
+
+test("the industry preset speaks a trade when the services say nothing (TUL-1474)", () => {
+  assert.equal(tradeFromIndustryPreset("restaurant"), "chefs");
+  assert.equal(tradeFromIndustryPreset(" Salon_Barber "), "nails");
+  assert.equal(tradeFromIndustryPreset("tours_activities"), "guides");
+  assert.equal(tradeFromIndustryPreset("custom"), null);
+  assert.equal(tradeFromIndustryPreset(undefined), null);
+});

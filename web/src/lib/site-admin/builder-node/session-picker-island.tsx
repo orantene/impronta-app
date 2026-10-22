@@ -72,6 +72,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     total: "Total {price}",
     // Shown only for a FREE booking: nothing is paid and no ticket email is sent, so it claims no email.
     done: "Done, your spot is booked.",
+    currency_unsupported: "This class cannot be paid online in its currency right now. Nothing was charged. Please contact the studio.",
     pay_error: "We could not open the payment page. Press the button to try again.",
     emailRequired: "We need an email to send your place to.",
     // Refusals, each its own sentence. A visitor who reads the wrong one goes
@@ -102,6 +103,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     perPerson: "{price} por persona",
     total: "Total {price}",
     done: "Listo, tu lugar está reservado.",
+    currency_unsupported: "Esta clase no se puede pagar en línea en su moneda por ahora. No se cobró nada. Escribe al estudio.",
     pay_error: "No pudimos abrir la página de pago. Pulsa el botón para intentar de nuevo.",
     emailRequired: "Necesitamos un correo para enviarte tu plaza.",
     sold_out: "Esa clase acaba de llenarse. Elige otra fecha y es tuya.",
@@ -346,7 +348,7 @@ export function SessionPickerIsland({
           // The order exists under this cart key, so the key is kept: the retry
           // is idempotent and reuses the same order and transaction.
           setRedirecting(false);
-          setRefusal(t("pay_error"));
+          setRefusal(t(pay.reason === "currency_unsupported" ? "currency_unsupported" : "pay_error"));
           return;
         }
         setDone(true);

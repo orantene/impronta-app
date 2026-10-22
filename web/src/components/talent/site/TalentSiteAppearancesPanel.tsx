@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { rehomeUrlToPublicRoot } from "@/lib/brand/public-root-domain";
+
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { setTalentSiteVisibility } from "@/app/(workspace)/[tenantSlug]/talent/settings/actions";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
@@ -150,6 +152,9 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
       isPrimary: a.isPrimary,
     });
   }
+
+  // TUL-1845: stored/server-built hosts carry the production pattern; show this environment's.
+  for (const p of placements) if (p.url) p.url = rehomeUrlToPublicRoot(p.url);
 
   const { live, other } = splitPlacements(placements);
 

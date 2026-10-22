@@ -6,7 +6,7 @@
  * Required (publish is blocked until each is there):
  *  - name: a title.
  *  - price: an amount, unless the item is priced by quote ("Contact for price").
- *  - length: a duration for a timed SERVICE sold at a price. Packages may be
+ *  - length: a duration for a timed SERVICE sold at a price (not the table-reservation item). Packages may be
  *    untimed (they go through the purchase flow) and products have no length,
  *    the same rule Add many and Camera add already apply.
  *  - currency: a 3-letter currency.
@@ -32,6 +32,8 @@ export type PublishReadinessInput = {
   reserveMode?: string | null;
   depositPct?: number | null;
   imageUrls?: readonly string[] | null;
+  /** The venue's table-reservation item: its length is the reservation slot, not a service duration. */
+  reservation?: boolean;
 };
 
 export type PublishReadiness = {
@@ -54,7 +56,7 @@ export function publishReadiness(
   const effectiveMode = o.bookingMode ?? defaultPosture ?? PLATFORM_DEFAULT_BOOKING_POSTURE;
   if (!o.title || !o.title.trim()) missing.push("name");
   if (!quote && (o.amountCents == null || o.amountCents < 0)) missing.push("price");
-  if (o.kind === "service" && !quote && (o.durationMinutes == null || o.durationMinutes <= 0)) {
+  if (o.kind === "service" && !o.reservation && !quote && (o.durationMinutes == null || o.durationMinutes <= 0)) {
     missing.push("length");
   }
   if (!o.currency || o.currency.trim().length < 3) missing.push("currency");
@@ -125,8 +127,11 @@ function joinList(parts: string[], and: string): string {
 }
 
 /** The server refusal (English; the editor localizes it with publishRefusalToSpanish). */
-export function notReadyToPublishMessage(title: string, missing: readonly PublishGap[]): string {
-  const name = title.trim() || "This service";
+export function notReadyToPublishMessage(title: string, missing: readonly PublishGap[], locale?: string | null): string {
+  const name = title.trim() || (locale?.startsWith("es") ? "Este servicio" : "This service");
+  if (locale?.startsWith("es")) {
+    return `“${name}” todavía no está lista para publicar. Le falta ${joinList(missing.map((g) => GAP_ES[g]), "y")}.`;
+  }
   return `“${name}” is not ready to publish. It still needs ${joinList(missing.map((g) => GAP_EN[g]), "and")}.`;
 }
 

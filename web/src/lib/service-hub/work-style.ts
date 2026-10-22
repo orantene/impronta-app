@@ -300,6 +300,17 @@ const TRADE_WORDS: Record<ExampleTrade, RegExp> = {
   models: /\b(model\w*|modelos?|talent|talento|photograph\w*|fot[oó]graf\w*|casting)\b/i,
 };
 
+/** TUL-1474: the trade an industry preset speaks, when the services alone say nothing. null = no clear trade. */
+export function tradeFromIndustryPreset(preset: unknown): ExampleTrade | null {
+  const id = typeof preset === "string" ? preset.trim().toLowerCase() : "";
+  if (id === "restaurant" || id === "bar_club" || id === "beach_club" || id === "private_chef") return "chefs";
+  if (id === "home_services" || id === "dropoff_service") return "cleaners";
+  if (id === "salon_barber" || id === "spa_wellness" || id === "pet_grooming") return "nails";
+  if (id === "tours_activities") return "guides";
+  if (id === "act" || id === "portfolio" || id === "agency") return "models";
+  return null;
+}
+
 /**
  * The trade the examples should speak, read from the workspace's own service categories and
  * titles (TUL-1474). The trade with the most matching services wins; a tie or no match is null

@@ -23,9 +23,9 @@ test("(a) a paid plan with an active subscription shows cancel", () => {
 
 test("(b) a subscription that ends at period end shows resume and the ends banner", () => {
   assert.equal(talentPlanCancelBlock("talent_web_office", sub({ cancelAtPeriodEnd: true })), "resume");
-  assert.equal(pickCopy(TALENT_CANCEL_COPY.resumeCta, true), "Reanudar plan");
+  assert.equal(pickCopy(TALENT_CANCEL_COPY.resumeCta, true), "Cancelar cambio");
   const banner = fillDate(pickCopy(TALENT_CANCEL_COPY.endsBanner, true), "5 de noviembre de 2026");
-  assert.match(banner, /termina el/i);
+  assert.match(banner, /cambia a Gratis el/i);
   assert.match(banner, /5 de noviembre de 2026/);
 });
 

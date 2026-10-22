@@ -1,5 +1,6 @@
 "use client";
 
+import { resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import React, { useState, useEffect } from "react";
 import { DemoBadge } from "@/components/demo-badge";
 import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
@@ -242,7 +243,7 @@ export function AdminOperationsShell() {
               </div>
               {(tenantSlug || effectiveTenant?.domain) && (
                 <a
-                  href={`https://${effectiveTenant?.domain ?? `tulala.digital/w/${tenantSlug}`}`}
+                  href={`https://${effectiveTenant?.domain ?? `${resolvePublicRootDomain()}/w/${tenantSlug}`}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

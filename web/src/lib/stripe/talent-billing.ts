@@ -20,7 +20,7 @@ import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, logServerExpected } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
-import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
+import { storedCustomerIsStale, syncCustomerPreferredLocale } from "@/lib/stripe/stored-customer";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
@@ -218,6 +218,7 @@ export async function createTalentCheckoutSession(opts: {
     opts.displayName,
   );
   if (!customerResult.ok) return customerResult;
+  await syncCustomerPreferredLocale(stripe, customerResult.data, opts.locale, (e) => logServerError("talent-billing.customer-locale", e)); // TUL-1874
 
   // Account discount > validated promo code > Stripe's own code box. Exactly
   // one of `discounts` / `allow_promotion_codes` comes out; Stripe rejects both.

@@ -24,3 +24,8 @@ test("setup items are returned as read, not re-awaited after the wave", () => {
   assert.doesNotMatch(afterWave, /await loadSetupItems/);
   assert.match(afterWave, /\n\s+setup,\n/);
 });
+
+test("TUL-734: zone uses the full tenant ladder, and the workspace currency wins on the money card", () => {
+  assert.match(src, /tenantTimezone\(input\.tenantId\)/);
+  assert.match(src, /hasMoneyIn\(fallbackCurrency\)/);
+});

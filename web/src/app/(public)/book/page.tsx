@@ -132,7 +132,7 @@ export default async function BookPage({
           locale={locale}
           contactHref={`${pathPrefix}${WORKSPACE_REQUEST_PATH}`}
         />
-        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={(e) => publicEntryRequestHref(`${pathPrefix}${WORKSPACE_REQUEST_PATH}`, e, locale)} /> : null}
+        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={(e) => publicEntryRequestHref(`${pathPrefix}${WORKSPACE_REQUEST_PATH}`, e, locale)} bookHref={(e) => (e.bookOfferingId ? `${pathPrefix}/book?service=${encodeURIComponent(e.bookOfferingId)}` : `${pathPrefix}/book`)} /> : null}
         <RosterRequestList
           items={rosterItems}
           contactHref={`${pathPrefix}${WORKSPACE_REQUEST_PATH}`}

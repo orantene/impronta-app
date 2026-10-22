@@ -26,7 +26,7 @@ type FakeQuery = {
   then: (resolve: (value: Result) => void) => void;
 };
 
-function makeAdmin(tables: Tables, opts: { failRosterWrite?: boolean; failRosterInsertCode?: string } = {}) {
+function makeAdmin(tables: Tables, opts: { failRosterWrite?: boolean; failRosterInsertCode?: string; rowAppearsOnConflict?: boolean } = {}) {
   const admin = {
     from(table: string): FakeQuery {
       const rows = (tables[table] ??= []);
@@ -63,7 +63,10 @@ function makeAdmin(tables: Tables, opts: { failRosterWrite?: boolean; failRoster
         },
         async insert(row) {
           if (table === "agency_talent_roster" && opts.failRosterWrite) return { data: null, error: { message: "boom" } };
-          if (opts.failRosterInsertCode) return { data: null, error: { code: opts.failRosterInsertCode, message: "dup" } };
+          if (opts.failRosterInsertCode) {
+            if (opts.rowAppearsOnConflict) rows.push({ id: "other", ...row });
+            return { data: null, error: { code: opts.failRosterInsertCode, message: "dup" } };
+          }
           rows.push({ id: `new-${rows.length}`, ...row });
           return { data: null, error: null };
         },
@@ -208,9 +211,102 @@ test("roster write failure releases the claim back to pending", async () => {
   assert.equal(tables.talent_hub_applications[0].decided_by_user_id, null);
 });
 
-test("a concurrent insert (23505) counts as success", async () => {
+test("a concurrent insert (23505) counts as success only when the live row really exists", async () => {
   const tables = fresh();
-  const out = await approveApplicationIntoRoster(makeAdmin(tables, { failRosterInsertCode: "23505" }), input, deps());
+  // The other request's row is there by the time we read back.
+  const admin = makeAdmin(tables, { failRosterInsertCode: "23505", rowAppearsOnConflict: true });
+  const out = await approveApplicationIntoRoster(admin, input, deps());
   assert.deepEqual(out, { ok: true, rosterAdded: false });
   assert.equal(tables.talent_hub_applications[0].status, "approved");
+});
+
+test("a 23505 that wrote no row (e.g. the one-primary index) is a failure and releases the claim", async () => {
+  const tables = fresh();
+  const out = await approveApplicationIntoRoster(makeAdmin(tables, { failRosterInsertCode: "23505" }), input, deps());
+  assert.equal(out.ok, false);
+  assert.equal(!out.ok && out.code, "db_error");
+  assert.equal(tables.talent_hub_applications[0].status, "pending");
+  assert.equal(tables.agency_talent_roster.length, 0);
+});
+
+test("the row the roster page lists (workspace + talent, active) exists after every successful approve", async () => {
+  for (const seed of [[], [{ id: "r1", tenant_id: T, talent_profile_id: P, status: "pending" }], [{ id: "r1", tenant_id: T, talent_profile_id: P, status: "inactive" }]]) {
+    const tables = fresh();
+    tables.agency_talent_roster.push(...seed);
+    const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps());
+    assert.equal(out.ok, true);
+    const listed = tables.agency_talent_roster.filter(
+      (r) => r.tenant_id === T && r.talent_profile_id === P && r.status === "active",
+    );
+    assert.equal(listed.length, 1);
+  }
+});
+
+test("re-approving an application approved earlier (no roster row) repairs the roster and is idempotent", async () => {
+  const tables = fresh();
+  tables.talent_hub_applications[0].status = "approved";
+  const admin = makeAdmin(tables);
+  const first = await approveApplicationIntoRoster(admin, input, deps());
+  assert.deepEqual(first, { ok: true, rosterAdded: true });
+  assert.equal(tables.agency_talent_roster.length, 1);
+  assert.equal(tables.agency_talent_roster[0].status, "active");
+  const second = await approveApplicationIntoRoster(admin, input, deps());
+  assert.equal(second.ok, false);
+  assert.equal(!second.ok && second.code, "already_decided");
+  assert.equal(tables.agency_talent_roster.length, 1);
+});
+
+test("a failed repair never un-approves the application", async () => {
+  const tables = fresh();
+  tables.talent_hub_applications[0].status = "approved";
+  const out = await approveApplicationIntoRoster(makeAdmin(tables, { failRosterWrite: true }), input, deps());
+  assert.equal(out.ok, false);
+  assert.equal(tables.talent_hub_applications[0].status, "approved");
+});
+
+test("a rejected application cannot be approved by the repair path", async () => {
+  const tables = fresh();
+  tables.talent_hub_applications[0].status = "rejected";
+  const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps());
+  assert.equal(!out.ok && out.code, "already_decided");
+  assert.equal(tables.agency_talent_roster.length, 0);
+});
+
+test("a removed roster row is reactivated: exactly one active row, history cleared, no duplicate", async () => {
+  for (const status of ["removed", "archived_for_downgrade"]) {
+    const tables = fresh();
+    tables.agency_talent_roster.push({
+      id: "old", tenant_id: T, talent_profile_id: P, status, source_type: "agency_added",
+      removed_at: "2026-10-21T20:28:00Z", removed_by: "u9", added_at: "2026-10-01T00:00:00Z",
+    });
+    const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps());
+    assert.deepEqual(out, { ok: true, rosterAdded: true });
+    assert.equal(tables.agency_talent_roster.length, 1);
+    const row = tables.agency_talent_roster[0];
+    assert.equal(row.id, "old");
+    assert.equal(row.status, "active");
+    assert.equal(row.removed_at, null);
+    assert.equal(row.removed_by, null);
+    assert.equal(row.added_at, "2026-10-21T00:00:00.000Z");
+  }
+});
+
+test("re-approving an approved hub application with a removed row repairs it", async () => {
+  const tables = fresh();
+  tables.talent_hub_applications[0].status = "approved";
+  tables.agency_talent_roster.push({ id: "old", tenant_id: T, talent_profile_id: P, status: "removed", source_type: "agency_added" });
+  const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps());
+  assert.deepEqual(out, { ok: true, rosterAdded: true });
+  assert.equal(tables.agency_talent_roster.length, 1);
+  assert.equal(tables.agency_talent_roster[0].status, "active");
+  assert.equal(tables.talent_hub_applications[0].status, "approved");
+});
+
+test("a removed row needs a seat: over the cap it is refused and stays removed", async () => {
+  const tables = fresh();
+  tables.agency_talent_roster.push({ id: "old", tenant_id: T, talent_profile_id: P, status: "removed" });
+  const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps({ checkSeat: async () => ({ ok: false, limit: 5 }) }));
+  assert.equal(!out.ok && out.code, "seat_limit");
+  assert.equal(tables.agency_talent_roster[0].status, "removed");
+  assert.equal(tables.talent_hub_applications[0].status, "pending");
 });

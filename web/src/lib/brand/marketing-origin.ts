@@ -13,12 +13,16 @@
  *    credentials are dropped); plain `http:` is accepted only for localhost;
  *  - anything else falls back to the production default.
  *
+ * TUL-1843: with no override, a non-production deployment falls back to its own
+ * public root (`resolvePublicRootOrigin`), never the production apex.
+ *
  * Server-side only: the variable is not `NEXT_PUBLIC_`, so client bundles always
  * resolve the default. Do NOT call this from a client component's render path
  * (it would differ between server HTML and the browser); canonical, SEO, legal
  * and Stripe URLs deliberately keep the production origin.
  */
 
+import { resolvePublicRootOrigin } from "./public-root-domain";
 import { TULALA_APEX_HOST } from "./tulala";
 
 export const DEFAULT_MARKETING_ORIGIN = `https://${TULALA_APEX_HOST}`;
@@ -28,16 +32,16 @@ type MarketingOriginEnv = Readonly<Record<string, string | undefined>>;
 export function resolveMarketingOrigin(env: MarketingOriginEnv = process.env): string {
   if (env.VERCEL_ENV === "production") return DEFAULT_MARKETING_ORIGIN;
   const raw = env.TULALA_MARKETING_ORIGIN?.trim();
-  if (!raw) return DEFAULT_MARKETING_ORIGIN;
+  if (!raw) return resolvePublicRootOrigin(env);
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
-    return DEFAULT_MARKETING_ORIGIN;
+    return resolvePublicRootOrigin(env);
   }
   const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
   if (url.protocol === "https:" || (url.protocol === "http:" && local)) return url.origin;
-  return DEFAULT_MARKETING_ORIGIN;
+  return resolvePublicRootOrigin(env);
 }
 
 /**
