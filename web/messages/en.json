@@ -1165,6 +1165,8 @@
       "avatarRemoveAria": "Remove {name} from your inquiry",
       "sendToAgency": "Send to agency",
       "sendToAgencySent": "Sent. The agency will reply shortly.",
+      "sendSentTitle": "Request sent",
+      "sendSentViewThread": "View the conversation",
       "sendHub": "Send",
       "sendHubNoPayment": "No payment now. We'll route your inquiry to the right people.",
       "sendHubSent": "Sent. {brand} will route your inquiry to the right people.",

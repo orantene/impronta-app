@@ -166,3 +166,11 @@ test("TUL-1317: inquiries behind client-owned bookings are added once, never dup
   assert.deepEqual(bookingOwnedInquiryIdsToAdd(["a", "b", null, undefined, "b", "c"], ["a"]), ["b", "c"]);
   assert.deepEqual(bookingOwnedInquiryIdsToAdd([], ["a"]), []);
 });
+
+test("TUL-65: a completed visit is history, whatever its date", () => {
+  const shaped = shapeMeData([
+    { id: "c1", tenantId: "t", status: "completed", title: "Done", eventDate: null, startsAtZone: null, eventLocation: null, createdAt: "2026-10-01T00:00:00Z", nextActionBy: null, booking: null },
+  ], Date.parse("2026-10-22T00:00:00Z"));
+  assert.equal(shaped.past.length, 1);
+  assert.equal(shaped.upcoming.length, 0);
+});
