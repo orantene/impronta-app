@@ -37,3 +37,25 @@ test("actions recognise the already-subscribed refusal to send people to the por
   assert.equal(isAlreadySubscribedError(SUBSCRIPTION_CHECK_FAILED_ERROR), false);
   assert.equal(isAlreadySubscribedError(undefined), false);
 });
+
+import { hasLiveTalentStripeSubscription } from "./duplicate-subscription";
+
+test("TUL-1835: a live talent subscription in Stripe blocks even when the row is stale", () => {
+  const talent = { checkout_type: "talent_subscription", plan_key: "talent_portfolio" };
+  for (const status of ["active", "trialing", "past_due"]) {
+    assert.equal(hasLiveTalentStripeSubscription([{ status, metadata: talent }]), true, status);
+  }
+  assert.equal(hasLiveTalentStripeSubscription([{ status: "trialing", metadata: { plan_key: "talent_pro" } }]), true);
+});
+
+test("TUL-1835: cancelled, incomplete and non-talent subscriptions do not block", () => {
+  const talent = { checkout_type: "talent_subscription" };
+  assert.equal(hasLiveTalentStripeSubscription([]), false);
+  for (const status of ["canceled", "incomplete", "incomplete_expired", "unpaid"]) {
+    assert.equal(hasLiveTalentStripeSubscription([{ status, metadata: talent }]), false, status);
+  }
+  assert.equal(
+    hasLiveTalentStripeSubscription([{ status: "active", metadata: { checkout_type: "workspace_subscription", plan_key: "agency_pro" } }]),
+    false,
+  );
+});
