@@ -74,6 +74,7 @@ src/lib/payments/seller-currency-messages.test.ts
 src/lib/platform/plan-labels.test.ts
 src/lib/pos/draft-variant-price.test.ts
 src/lib/pos/pos-enabled.test.ts
+src/lib/pricing/discount-status.test.ts
 src/lib/pricing/interval-pricing.test.ts
 src/lib/pricing/pricing-cta-href.test.ts
 src/lib/promos/booking-quote.server.test.ts

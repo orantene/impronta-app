@@ -49,6 +49,7 @@ import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
+import { discountStatus } from "@/lib/pricing/discount-status";
 import { archiveOutcome } from "@/lib/billing/discount-archive-outcome";
 import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
@@ -575,14 +576,14 @@ export async function validateDiscount(
     load.data as unknown as RawProductDiscountRow,
   );
 
-  if (!discount.isActive) {
+  const status = discountStatus(discount);
+  if (status === "archived") {
     return { ok: false, reason: "Code is no longer active." };
   }
-  const now = Date.now();
-  if (discount.startsAt && new Date(discount.startsAt).getTime() > now) {
+  if (status === "scheduled") {
     return { ok: false, reason: "Code hasn’t started yet." };
   }
-  if (discount.endsAt && new Date(discount.endsAt).getTime() < now) {
+  if (status === "expired") {
     return { ok: false, reason: "Code has expired." };
   }
   if (
