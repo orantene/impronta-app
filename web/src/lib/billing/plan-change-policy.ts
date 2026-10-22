@@ -25,6 +25,16 @@ import type { PromoErrorCode } from "./promo-preview";
 import { PLAN_CATALOG, isKnownPlan } from "@/lib/access/plan-catalog";
 import type { BillingInterval } from "@/lib/pricing/interval-pricing";
 
+/**
+ * TUL-831: the free talent plan has no Stripe price. Switching to it is a
+ * period-end cancel (`cancel_at_period_end`), never a schedule phase.
+ */
+export const FREE_TALENT_PLAN_KEY = "talent_basic";
+
+export function isFreeTalentTarget(plan: string): boolean {
+  return plan === FREE_TALENT_PLAN_KEY;
+}
+
 export type PlanChangeKind = "upgrade" | "downgrade" | "interval_up" | "interval_down" | "noop";
 export type PlanChangeTiming = "now" | "period_end";
 
@@ -122,6 +132,16 @@ export function discountParams(s: Pick<PlanChangeSubject, "discount">): { discou
   return s.discount ? { discounts: [s.discount] } : {};
 }
 
+/**
+ * subscriptions.update params for "switch to Free": the subscription keeps its
+ * paid price and plan metadata until the period ends, then Stripe ends it and
+ * the `customer.subscription.deleted` webhook drops the talent to Free. No
+ * proration, no refund, no invoice today.
+ */
+export function buildFreeDowngradeUpdateParams() {
+  return { cancel_at_period_end: true as const };
+}
+
 export function planChangeMetadata(s: Pick<PlanChangeSubject, "toPlan" | "toInterval">): Record<string, string> {
   return { plan_key: s.toPlan, billing_interval: s.toInterval };
 }
@@ -205,7 +225,7 @@ export function planChangeIdempotencyKey(input: {
   toPlan: string;
   toInterval: BillingInterval;
   prorationDate: number;
-  step: "update" | "schedule_create" | "schedule_update" | "schedule_release";
+  step: "update" | "schedule_create" | "schedule_update" | "schedule_release" | "downgrade_free" | "cancel_pending";
   /** TUL-833: the attached discount id, so a retry with a different code never replays another code's key. */
   discountId?: string | null;
 }): string {
@@ -250,6 +270,8 @@ export type PlanChangePreview =
       effectiveAt: string | null;
       /** True when a period-end change is already scheduled and this confirm cancels it. */
       cancelsPendingChange: boolean;
+      /** TUL-831: the plan the subscription is on now, so the sheet can say "until then you stay on X". */
+      fromPlan?: string;
       /** TUL-1297: the subscription's current and requested billing interval. */
       fromInterval: BillingInterval;
       toInterval: BillingInterval;
@@ -285,6 +307,7 @@ export function planChangeCopyKey(p: {
 }):
   | "payToday"
   | "changesOn"
+  | "downgradeAt"
   | "cancelPending"
   | "noChange"
   | "switchYearlyNow"
@@ -294,5 +317,6 @@ export function planChangeCopyKey(p: {
   // TUL-1297: an interval change names the new billing interval and its price.
   if (p.kind === "interval_down") return "switchMonthlyAt";
   if (p.kind === "interval_up") return (p.amountDueToday ?? 0) > 0 || !p.effectiveAt ? "switchYearlyNow" : "switchYearlyAt";
+  if (p.kind === "downgrade" && p.timing === "period_end") return "downgradeAt";
   return p.timing === "now" ? "payToday" : "changesOn";
 }

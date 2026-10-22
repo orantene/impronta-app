@@ -102,8 +102,11 @@ export function PlanChangeConfirm({
   onDone,
   onCancel,
   initialCode = null,
+  currentPlanName,
 }: {
   initialCode?: string | null;
+  /** TUL-831: names the plan the subscription is on now ("until then you stay on X"). */
+  currentPlanName?: (plan: string) => string;
   /** Already translated plan display name. */
   planName: string;
   preview: (code: string | null) => Promise<PlanChangePreview>;
@@ -125,6 +128,7 @@ export function PlanChangeConfirm({
     const key = planChangeCopyKey(p);
     sentence = interpolate(t(`dashboard.adminShared.planChange.${key}`), {
       plan: planName,
+      current: p.fromPlan && currentPlanName ? currentPlanName(p.fromPlan) : "",
       amount: money(p.amountDueToday, p.currency),
       price: p.newPrice ? money(p.newPrice.amount, p.newPrice.currency) : "",
       date: formatPeriodDate(p.effectiveAt, locale) ?? "",

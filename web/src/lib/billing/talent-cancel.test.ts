@@ -46,6 +46,6 @@ test("only live statuses can be cancelled or resumed", () => {
 });
 
 test("banner copy fills the date in both languages", () => {
-  assert.match(fillDate(pickCopy(TALENT_CANCEL_COPY.endsBanner, false), "May 1"), /ends on May 1/);
-  assert.match(fillDate(pickCopy(TALENT_CANCEL_COPY.endsBanner, true), "1 de mayo"), /termina el 1 de mayo/);
+  assert.match(fillDate(pickCopy(TALENT_CANCEL_COPY.endsBanner, false), "May 1"), /changes to Free on May 1/);
+  assert.match(fillDate(pickCopy(TALENT_CANCEL_COPY.endsBanner, true), "1 de mayo"), /cambia a Gratis el 1 de mayo/);
 });

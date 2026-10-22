@@ -10,19 +10,23 @@
 import type Stripe from "stripe";
 
 import { isDefiniteStripeFailure } from "./stripe-failure";
+import { isCancellationPending } from "./pending-cancellation";
 import { buildBreakdown, renewalAmount } from "./plan-change-breakdown";
 import { computePromoPreview } from "./promo-preview";
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import type { BillingInterval } from "@/lib/pricing/interval-pricing";
 import {
+  buildFreeDowngradeUpdateParams,
   buildImmediateUpdateParams,
   buildPreviewParams,
   buildScheduleUpdateParams,
+  isFreeTalentTarget,
   isUsableProrationDate,
   nowProrationDate,
   planChangeIdempotencyKey,
   planChangePolicy,
   type PlanChangeConfirm,
+  type PlanChangePolicy,
   type PlanChangeDiscountEntry,
   type PlanChangePreview,
   type PlanChangeSubject,
@@ -61,7 +65,7 @@ export type PlanChangePromoInput = {
   discount: PricingDiscountRow;
 };
 
-type Current = {
+export type Current = {
   sub: Stripe.Subscription;
   item: Stripe.SubscriptionItem;
   fromPlan: string;
@@ -71,7 +75,7 @@ type Current = {
 
 const ACTIVE = new Set(["active", "trialing", "past_due"]);
 
-function readCurrent(sub: Stripe.Subscription, kind: "talent" | "workspace", subjectId: string): Current | string {
+export function readCurrent(sub: Stripe.Subscription, kind: "talent" | "workspace", subjectId: string): Current | string {
   if (!ACTIVE.has(sub.status)) return "This plan is not active.";
   const owner = kind === "talent" ? sub.metadata?.talent_profile_id : sub.metadata?.tenant_id;
   // Legacy subscriptions may lack the id tag; when present it must match.
@@ -123,8 +127,29 @@ function discountKeyPart(entry: PlanChangeDiscountEntry): string {
   return "promotion_code" in entry ? entry.promotion_code : entry.coupon;
 }
 
-function iso(unix: number): string {
+export function iso(unix: number): string {
   return new Date(unix * 1000).toISOString();
+}
+
+/**
+ * TUL-831: the policy for a request. "Switch to Free" is always a period-end downgrade (there is no price to compare),
+ * or a noop when the subscription is already set to end.
+ */
+function policyFor(req: PlanChangeRequest, c: Current): PlanChangePolicy {
+  if (!isFreeTalentTarget(req.toPlan)) {
+    return planChangePolicy({ plan: c.fromPlan, interval: c.fromInterval }, { plan: req.toPlan, interval: req.toInterval });
+  }
+  const noop = planChangePolicy({ plan: req.toPlan, interval: req.toInterval }, { plan: req.toPlan, interval: req.toInterval });
+  if (isCancellationPending(c.sub)) return noop;
+  return planChangePolicy({ plan: "talent_pro", interval: "month" }, { plan: req.toPlan, interval: "month" });
+}
+
+/** Free is a talent-only target and carries no Stripe price; every other target needs a catalog price. */
+function targetRefusal(req: PlanChangeRequest): { ok: false; error: string; code: "no_price" | "not_allowed" } | null {
+  if (isFreeTalentTarget(req.toPlan)) {
+    return req.kind === "talent" ? null : { ok: false, error: "That plan is not available.", code: "not_allowed" };
+  }
+  return req.toPriceId ? null : { ok: false, error: "This plan is not available for that billing period.", code: "no_price" };
 }
 
 async function load(stripe: PlanChangeStripe, req: PlanChangeRequest): Promise<Current | string> {
@@ -137,13 +162,16 @@ export async function previewPlanChange(
   req: PlanChangeRequest,
   nowMs: number = Date.now(),
 ): Promise<PlanChangePreview> {
-  if (!req.toPriceId) return { ok: false, error: "This plan is not available for that billing period.", code: "no_price" };
+  const refusedTarget = targetRefusal(req);
+  if (refusedTarget) return refusedTarget;
   try {
     const c = await load(stripe, req);
     if (typeof c === "string") return { ok: false, error: c, code: "not_allowed" };
-    const policy = planChangePolicy({ plan: c.fromPlan, interval: c.fromInterval }, { plan: req.toPlan, interval: req.toInterval });
+    const policy = policyFor(req, c);
     const prorationDate = nowProrationDate(nowMs);
+    const toFree = isFreeTalentTarget(req.toPlan);
     const base = {
+      fromPlan: c.fromPlan,
       kind: policy.kind,
       timing: policy.timing,
       prorationDate,
@@ -153,9 +181,9 @@ export async function previewPlanChange(
       newPrice: null as { amount: number; currency: string } | null,
     };
     const isIntervalChange = policy.kind === "interval_up" || policy.kind === "interval_down";
-    if (isIntervalChange) {
-      // Fail closed: no readable price, no preview (never a made-up number or a currency fallback).
-      const price = await stripe.prices.retrieve(req.toPriceId);
+    // Fail closed on every priced change, downgrades included: no readable price, no preview.
+    if ((isIntervalChange || policy.kind === "downgrade") && !toFree) {
+      const price = await stripe.prices.retrieve(req.toPriceId as string);
       const currency = price.currency?.trim();
       if (price.unit_amount == null || !currency) {
         return { ok: false, error: "This plan is not available for that billing period.", code: "no_price" };
@@ -177,12 +205,12 @@ export async function previewPlanChange(
     if (policy.kind === "noop") {
       return { ok: true, ...base, amountDueToday: 0, currency: c.item.price.currency, effectiveAt: null };
     }
-    const invoice = await stripe.invoices.createPreview(buildPreviewParams(subject(req, c, req.toPriceId), prorationDate));
+    const invoice = await stripe.invoices.createPreview(buildPreviewParams(subject(req, c, req.toPriceId as string), prorationDate));
     // TUL-831: the next renewal on the new price. Best effort; the line is simply hidden when the price is unreadable.
     let unit: number | null = base.newPrice && base.newPrice.currency === invoice.currency ? base.newPrice.amount : null;
     if (unit === null && !isIntervalChange) {
       try {
-        const price = await stripe.prices.retrieve(req.toPriceId);
+        const price = await stripe.prices.retrieve(req.toPriceId as string);
         unit = price.unit_amount != null && price.currency === invoice.currency ? price.unit_amount : null;
       } catch {
         unit = null;
@@ -217,15 +245,16 @@ export async function confirmPlanChange(
   prorationDate: unknown,
   nowMs: number = Date.now(),
 ): Promise<PlanChangeConfirm> {
-  if (!req.toPriceId) return { ok: false, error: "This plan is not available for that billing period.", code: "no_price" };
+  const refusedTarget = targetRefusal(req);
+  if (refusedTarget) return refusedTarget;
   if (!isUsableProrationDate(prorationDate, nowMs)) {
     return { ok: false, error: "The price changed. Review it again.", code: "stale_preview" };
   }
-  const toPriceId = req.toPriceId;
+  const toPriceId = req.toPriceId as string;
   try {
     const c = await load(stripe, req);
     if (typeof c === "string") return { ok: false, error: c, code: "not_allowed" };
-    const policy = planChangePolicy({ plan: c.fromPlan, interval: c.fromInterval }, { plan: req.toPlan, interval: req.toInterval });
+    const policy = policyFor(req, c);
     const key = (step: Parameters<typeof planChangeIdempotencyKey>[0]["step"]) =>
       planChangeIdempotencyKey({
         subscriptionId: c.sub.id,
@@ -237,6 +266,16 @@ export async function confirmPlanChange(
       });
     const refused = promoRefusal(req, c, policy);
     if (refused) return refused;
+
+    if (isFreeTalentTarget(req.toPlan)) {
+      if (policy.kind === "noop") return { ok: true, kind: "noop", timing: "now", effectiveAt: null };
+      // A subscription controlled by a schedule cannot take cancel_at_period_end: drop the pending paid change first.
+      if (c.scheduleId) {
+        await stripe.subscriptionSchedules.release(c.scheduleId, {}, { idempotencyKey: key("schedule_release") });
+      }
+      await stripe.subscriptions.update(c.sub.id, buildFreeDowngradeUpdateParams(), { idempotencyKey: key("downgrade_free") });
+      return { ok: true, kind: "downgrade", timing: "period_end", effectiveAt: iso(c.item.current_period_end) };
+    }
 
     if (policy.timing === "now") {
       // Upgrading again (or going back to the current plan) cancels a pending

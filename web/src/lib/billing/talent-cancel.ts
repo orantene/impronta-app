@@ -108,11 +108,13 @@ export type Bi = { en: string; es: string };
 
 export const TALENT_CANCEL_COPY = {
   cancelCta: { en: "Cancel plan", es: "Cancelar plan" },
-  resumeCta: { en: "Resume plan", es: "Reanudar plan" },
-  resuming: { en: "Resuming...", es: "Reanudando..." },
+  // TUL-831: a plan set to end at period end IS a switch to Free (cancel and "Switch to Free" are the same change),
+  // so the banner says so and the undo button is "Cancel change".
+  resumeCta: { en: "Cancel change", es: "Cancelar cambio" },
+  resuming: { en: "Cancelling change...", es: "Cancelando cambio..." },
   endsBanner: {
-    en: "Your plan ends on {date}. You keep everything until then.",
-    es: "Tu plan termina el {date}. Conservas todo hasta entonces.",
+    en: "Your plan changes to Free on {date}. Until then you keep your current plan. Nothing is charged today.",
+    es: "Tu plan cambia a Gratis el {date}. Hasta entonces conservas tu plan actual. Hoy no se cobra nada.",
   },
   endsBannerNoDate: {
     en: "Your plan is set to end at the close of this billing period.",

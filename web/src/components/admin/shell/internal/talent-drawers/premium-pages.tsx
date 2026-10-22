@@ -49,6 +49,7 @@ import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settin
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PromoCodeInput } from "@/components/billing/promo-code-input";
 import { useTalentPlanChange } from "@/components/billing/use-talent-plan-change";
+import { TalentSwitchToFree } from "@/components/billing/talent-switch-to-free";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 import { TierIntervalToggle, planYearlyPrice, useYearlyPlans, type TierInterval } from "./tier-interval-toggle";
@@ -138,6 +139,7 @@ export function TalentTierCompareDrawer() {
       width={760}
       footer={
         <>
+          {current !== "free" && <TalentSwitchToFree className="mr-2 rounded-md border px-3 py-2 text-sm font-semibold" />}
           <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
@@ -500,9 +502,6 @@ export function TalentPersonalPageDrawer() {
     </DrawerShell>
   );
 }
-
-// ─── Page template picker ───────────────────────────────────────────
-
 
 // ─── Page template picker ───────────────────────────────────────────
 

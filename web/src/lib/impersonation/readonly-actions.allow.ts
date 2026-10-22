@@ -12,7 +12,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/offer-line-confirmation.ts", ["loadOfferLineConfirmationViewAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/account/plan-change-actions.ts", ["previewWorkspacePlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmWorkspacePlanChange is guarded"],
   ["app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions.ts", ["loadWorkspaceYearlyCheckoutPlans"], READ],
-  ["app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts", ["previewTalentPlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmTalentPlanChange is guarded"],
+  ["app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts", ["previewTalentPlanChange", "loadTalentPendingPlanChange"], "plan-change preview / pending-change read: Stripe reads only; confirmTalentPlanChange and cancelTalentPlanChange are guarded"],
   ["app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions.ts", ["loadTalentYearlyCheckoutPlans"], READ],
   ["lib/server-actions/talent-billing-summary.ts", ["loadTalentBillingSummary"], READ],
   ["lib/server-actions/validate-promo-code.ts", ["validatePromoCode"], "promo preview: validates a code against the catalog, redeems nothing and calls no Stripe API"],
