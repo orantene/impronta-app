@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { parseStudioReference, type JoinStudioErrorCode } from "@/lib/onboarding/join-studio";
 import { loadOwnTalentProfileId, resolveJoinableStudio } from "@/lib/onboarding/join-studio.server";
+import { submitAgencyApplication } from "@/lib/talent/apply-actions";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { applyRegistrationPolicy } from "@/lib/saas/registration-policy";
 import { loadRegistrationSettings, registrationIsLive } from "@/lib/saas/registration-settings";
@@ -45,7 +46,18 @@ export async function joinStudioAction(raw: string): Promise<JoinStudioResult> {
     const studio = await resolveJoinableStudio(admin, ref);
     if (!studio) return { ok: false, code: "not_found" };
     const settings = await loadRegistrationSettings(studio.tenantId);
-    if (!registrationIsLive(settings)) return { ok: false, code: "not_found" };
+    if (!registrationIsLive(settings)) {
+      // TUL-1862: a studio that is not self-registering can still take applications
+      // (the open-applications switch Discover Agencies lists). That path files a
+      // pending application the studio decides; anything else stays "not found".
+      if (!studio.acceptsOpenApplications) return { ok: false, code: "not_found" };
+      const applied = await submitAgencyApplication(studio.tenantId);
+      if (applied.ok) return { ok: true, status: "pending", studioName: studio.displayName };
+      if (applied.code === "duplicate_pending") return { ok: false, code: "already_pending" };
+      if (applied.code === "exclusivity_block") return { ok: false, code: "exclusive" };
+      if (applied.code === "talent_profile_not_found") return { ok: false, code: "no_profile" };
+      return { ok: false, code: "failed" };
+    }
 
     const outcome = await applyRegistrationPolicy(admin, {
       tenantId: studio.tenantId,

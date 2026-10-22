@@ -35,7 +35,8 @@ test("TUL-75 join studio: closed studios answer like unknown ones, and the actio
   const src = read("src/lib/server-actions/join-studio.ts");
   assert.match(src, /assertNotImpersonating\(\)/);
   assert.match(src, /tryConsumeRateLimit\(`join-studio:\$\{userId\}`/);
-  assert.match(src, /if \(!registrationIsLive\(settings\)\) return \{ ok: false, code: "not_found" \};/);
+  assert.match(src, /if \(!registrationIsLive\(settings\)\) \{/);
+  assert.match(src, /if \(!studio\.acceptsOpenApplications\) return \{ ok: false, code: "not_found" \};/);
   assert.match(src, /if \(!studio\) return \{ ok: false, code: "not_found" \};/);
   assert.match(src, /applyRegistrationPolicy\(admin,/);
   assert.doesNotMatch(src, /getTenantPortalScopeBySlug/);
@@ -51,4 +52,13 @@ test("TUL-75 join studio: the card is in talent Settings and every error has EN 
     assert.ok(pair.en.trim() && pair.es.trim(), code);
     assert.notEqual(pair.en, pair.es, code);
   }
+});
+
+test("TUL-1862 join studio: a studio with open applications ON files an application, and the card links to Discover", () => {
+  const src = read("src/lib/server-actions/join-studio.ts");
+  assert.match(src, /submitAgencyApplication\(studio\.tenantId\)/);
+  assert.match(src, /duplicate_pending[^\n]*already_pending/);
+  assert.match(read("src/lib/onboarding/join-studio.server.ts"), /accepts_open_applications/);
+  const card = read("src/components/settings/join-studio-card.tsx");
+  assert.match(card, /href="\/talent\/discover-agencies"/);
 });

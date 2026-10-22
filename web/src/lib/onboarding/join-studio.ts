@@ -12,6 +12,8 @@ export type JoinStudioErrorCode =
   | "bad_address"
   | "too_many"
   | "no_profile"
+  | "already_pending"
+  | "exclusive"
   | "not_found"
   | "failed";
 
