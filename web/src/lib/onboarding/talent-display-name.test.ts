@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { talentDisplayNameFor } from "./talent-display-name";
+import { brandLineFor, talentDisplayNameFor } from "./talent-display-name";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -43,4 +43,26 @@ test("TUL-810: the talent essentials screen offers an optional business name, sa
     const e = JSON.parse(read(`messages/${l}.json`)).public.onboarding.essentials;
     assert.ok(e.soloBusinessName && e.soloBusinessNameHint, l);
   }
+});
+
+test("TUL-810 + TUL-1839: the business name still shows, as the brand line under the person's name", () => {
+  assert.equal(brandLineFor({ displayName: "Valeria", businessName: " Brillo Caribe " }), "Brillo Caribe");
+  assert.equal(brandLineFor({ displayName: "Brillo Caribe", businessName: "brillo caribe" }), null, "same as the page name: no duplicate line");
+  assert.equal(brandLineFor({ displayName: "Valeria", businessName: "  " }), null);
+  assert.equal(brandLineFor({ displayName: "Valeria", businessName: null }), null);
+});
+
+test("TUL-810 + TUL-1839: never neither (a person with no name keeps the business as the page name)", () => {
+  const name = talentDisplayNameFor({ choice: "myself", businessName: "Casa Limpia", personName: null });
+  assert.equal(name, "Casa Limpia");
+  assert.equal(brandLineFor({ displayName: name, businessName: "Casa Limpia" }), null);
+  const named = talentDisplayNameFor({ choice: "myself", businessName: "Casa Limpia", personName: "Ana" });
+  assert.deepEqual([named, brandLineFor({ displayName: named, businessName: "Casa Limpia" })], ["Ana", "Casa Limpia"]);
+});
+
+test("TUL-810 + TUL-1839: the writer puts the brand line in the tagline slot and keeps a tagline the person wrote", () => {
+  const w = read("src/lib/onboarding/talent-writer.server.ts");
+  assert.match(w, /brandLineFor\(/);
+  assert.match(w, /readScalarFieldValuesFromCatalog\(admin, id\)/);
+  assert.match(w, /if \(!current\.tagline\?\.trim\(\)\) await syncScalarFieldValuesToCatalog\(admin, id, tenantId, \{ tagline: brand \}\)/);
 });

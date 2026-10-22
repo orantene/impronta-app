@@ -19,6 +19,18 @@ export function talentDisplayNameFor(input: {
   return input.choice === "myself" && business ? business : null;
 }
 
+/**
+ * TUL-1839 / TUL-810: the business name still shows on the page, as the line
+ * under the headline (the profile's existing `identity.tagline` slot, which the
+ * hero already renders). Null when there is none or it is the page name itself,
+ * so the page never shows neither the person nor the brand.
+ */
+export function brandLineFor(input: { displayName: string | null | undefined; businessName: string | null | undefined }): string | null {
+  const business = input.businessName?.trim();
+  if (!business) return null;
+  return business.toLowerCase() === (input.displayName ?? "").trim().toLowerCase() ? null : business;
+}
+
 /** The placeholder the talent writer falls back to when the wizard gave no name. */
 export const TALENT_NAME_PLACEHOLDER = "My page";
 
