@@ -25,6 +25,7 @@ import {
   type BookingSurface,
 } from "./appointment-policy";
 import type { AppointmentMode } from "./appointments-plan-policy";
+import { isInstantHubMember } from "./hub-instant-member";
 
 export type TalentBookingMode = "inquire" | "request" | "instant";
 
@@ -66,6 +67,13 @@ type AgencyRow = {
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** The owner switched appointments OFF on purpose (`settings.appointments.enabled === false`), as opposed to never setting it. */
+function appointmentsExplicitlyOff(settings: unknown): boolean {
+  if (!isPlainObject(settings) || !isPlainObject(settings.appointments)) return false;
+  const enabled = settings.appointments.enabled;
+  return enabled === false || enabled === "false";
 }
 
 export function bookingSurfaceFromHost(kind: string): BookingSurfaceKind {
@@ -350,7 +358,20 @@ export async function resolveTalentBooking(
     venueTimezone = (venueRow as { timezone: string | null } | null)?.timezone ?? null;
   }
 
-  const tenantAppointments = parseTenantAppointmentSettings(channelAgency?.settings ?? null);
+  const parsedAppointments = parseTenantAppointmentSettings(channelAgency?.settings ?? null);
+  // TUL-1471b: an offering the workspace sells through an INSTANT hub entry does not also need the
+  // separate appointments master switch (see hub-instant-member.ts). Only this offering, only here.
+  const sellsViaInstantHubEntry =
+    surface === "workspace_site" &&
+    offering != null &&
+    !!input.offeringId &&
+    !!channelTenant &&
+    parsedAppointments?.enabled !== true &&
+    !appointmentsExplicitlyOff(channelAgency?.settings) &&
+    (await isInstantHubMember(admin, { tenantId: channelTenant, talentProfileId: talent.id, offeringId: input.offeringId }));
+  const tenantAppointments = sellsViaInstantHubEntry
+    ? { ...(parsedAppointments ?? { enabled: false }), enabled: true }
+    : parsedAppointments;
   const workspaceTimezone = pickTimezone({
     venue: venueTimezone,
     workspace: channelAgency?.timezone ?? null,

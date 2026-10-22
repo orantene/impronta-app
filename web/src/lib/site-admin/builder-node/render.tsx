@@ -6292,6 +6292,7 @@ function renderBuilderNodeElement(
                 options.dataSources.rosterServices,
                 locale,
                 prefixPublicHref(WORKSPACE_REQUEST_PATH, options.publicPathPrefix ?? ""),
+                prefixPublicHref("/book", options.publicPathPrefix ?? ""),
               )}
               locale={locale}
             />

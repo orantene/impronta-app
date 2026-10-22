@@ -69,7 +69,9 @@ export async function loadPublicBookableOfferings(args: {
     if (pinnedId && !loaded.some((r) => r.id === pinnedId)) {
       // Past the row cap: fetch it on its own, same tenant + sellable scope.
       let one = scopeToSellableOfferings(admin.from("talent_offerings").select("*"), "guest_request").eq("id", pinnedId);
-      if (args.tenantId) one = one.eq("tenant_id", args.tenantId);
+      // TUL-1471b: a hub entry's member offering belongs to the talent's row, so the tenant filter alone
+      // drops it. Only an id the caller already vetted as an INSTANT entry's member (extraOfferingIds) is let in.
+      if (args.tenantId) one = extraIds.includes(pinnedId) ? one.or(`tenant_id.eq.${args.tenantId},id.eq.${pinnedId}`) : one.eq("tenant_id", args.tenantId);
       if (args.talentProfileId) one = one.eq("talent_profile_id", args.talentProfileId);
       const { data: extra } = await one.maybeSingle();
       if (extra) loaded.push(extra as TalentOfferingRow);

@@ -2,7 +2,8 @@
 
 /**
  * TUL-1372: the workspace's roster services inside the Services widget band.
- * REQUEST-ONLY until the listing checkout reader exists: each card shows the
+ * Request links until the listing checkout reader exists (TUL-1471b: an instant entry books in the
+ * widget instead, "Reservar"): each card shows the
  * talent (or the workspace label), the price or "From", and a Request link to
  * the contact form with the service prefilled. The Service and Who filters are
  * client-side over the entries already loaded.
@@ -12,8 +13,8 @@ import { useMemo, useState } from "react";
 import { filterRosterEntries, rosterGridFilters, type RosterGridEntry } from "@/lib/service-hub/roster-grid";
 
 const COPY = {
-  en: { heading: "From our team", service: "Service", who: "Who", all: "All", request: "Request", none: "Nothing matches these filters." },
-  es: { heading: "De nuestro equipo", service: "Servicio", who: "Quién", all: "Todos", request: "Solicitar", none: "Nada coincide con estos filtros." },
+  en: { heading: "From our team", service: "Service", who: "Who", all: "All", request: "Request", book: "Book", none: "Nothing matches these filters." },
+  es: { heading: "De nuestro equipo", service: "Servicio", who: "Quién", all: "Todos", request: "Solicitar", book: "Reservar", none: "Nada coincide con estos filtros." },
 } as const;
 
 export function RosterServicesGrid({ entries, locale }: { entries: readonly RosterGridEntry[]; locale: string }) {
@@ -58,7 +59,7 @@ export function RosterServicesGrid({ entries, locale }: { entries: readonly Rost
               <strong>{e.title}</strong>
               <span style={{ fontSize: 13, opacity: 0.7 }}>{e.who}</span>
               <span style={{ fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{e.price}</span>
-              <a href={e.href} style={{ marginTop: 4, alignSelf: "flex-start", border: "1px solid rgba(24,24,27,0.2)", borderRadius: 8, padding: "6px 12px", fontSize: 14 }}>{t.request}</a>
+              <a href={e.href} style={{ marginTop: 4, alignSelf: "flex-start", border: "1px solid rgba(24,24,27,0.2)", borderRadius: 8, padding: "6px 12px", fontSize: 14 }}>{e.cta === "book" ? t.book : t.request}</a>
             </li>
           ))}
         </ul>
