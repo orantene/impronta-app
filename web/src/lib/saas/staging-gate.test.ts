@@ -63,10 +63,10 @@ test("cookie sign/verify and password change invalidation", async () => {
 });
 
 test("always-allowed paths", () => {
-  for (const p of ["/api/webhooks/resend", "/api/cron/outbox", "/api/health/flags", "/api/stripe/webhook", "/_next/static/x.js", "/favicon.ico", "/robots.txt", "/__staging-gate", "/fonts/a.woff2", "/img/a.png"]) {
+  for (const p of ["/api/webhooks/resend", "/api/cron/outbox", "/api/health/flags", "/api/stripe/webhook", "/api/hooks/auth-email", "/_next/static/x.js", "/favicon.ico", "/robots.txt", "/__staging-gate", "/fonts/a.woff2", "/img/a.png"]) {
     assert.equal(isAlwaysAllowedPath(p), true, p);
   }
-  for (const p of ["/", "/login", "/auth/confirm", "/api/admin/x", "/api/x.json", "/platform/admin"]) assert.equal(isAlwaysAllowedPath(p), false, p);
+  for (const p of ["/", "/login", "/auth/confirm", "/api/admin/x", "/api/hooks/other", "/api/x.json", "/platform/admin"]) assert.equal(isAlwaysAllowedPath(p), false, p);
 });
 
 test("CI token: exact match only, empty config never passes", () => {
