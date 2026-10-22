@@ -52,7 +52,7 @@ import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.ser
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
 /** Hard cut for deferred LLM work (guest already got their send response). */
-const LLM_TIMEOUT_MS = 12_000;
+const LLM_TIMEOUT_MS = 5_000;
 
 /**
  * Live QA / ops: every silent skip must leave a greppable line.
