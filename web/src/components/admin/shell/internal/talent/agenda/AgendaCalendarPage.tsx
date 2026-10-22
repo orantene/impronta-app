@@ -109,7 +109,8 @@ export function AgendaCalendarPage({
   // TUL-66: place blocks by the talent's wall clock (same source as `clock`).
   // `rawAgenda` keeps real instants (all writes/sheets); `agenda` is grid-only.
   const rawAgenda = useMemo(
-    () => items ?? (entries ?? []).map(agendaItemFromCalendarEntry),
+    // TUL-1244: no-time drafts live on Today's "Sin hora" strip, never on the grid.
+    () => (items ?? (entries ?? []).map(agendaItemFromCalendarEntry)).filter((item) => !item.unscheduled),
     [items, entries],
   );
   const agenda = useMemo(
