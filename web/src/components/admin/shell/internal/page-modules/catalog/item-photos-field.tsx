@@ -4,7 +4,9 @@
  * item-photos-field — TUL-1271 #1: add, remove and reorder-by-cover the photos
  * of a workspace catalog item. Files go to the tenant library
  * (`/api/admin/media/upload`), then `setWorkspaceItemPhotos` links them to the
- * item. The first photo is the cover. A new (unsaved) item says to save first.
+ * item. The first photo is the cover. A new (unsaved) item keeps its photos in
+ * the draft and links them when it is saved (TUL-1271: the field used to be
+ * disabled until a first save, and the draft showed no photos).
  */
 
 import { useRef, useState } from "react";
@@ -27,7 +29,13 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
   const assets = item.imageAssets ?? [];
   const ids = assets.map((a) => a.id);
 
-  async function apply(nextIds: string[]) {
+  async function apply(nextIds: string[], uploaded?: { id: string; url: string }) {
+    if (isDraft) {
+      // Not saved yet: hold the photos on the draft; the editor links them on save.
+      const next = nextIds.map((id) => assets.find((a) => a.id === id) ?? (uploaded && uploaded.id === id ? uploaded : null)).filter((a): a is { id: string; url: string; alt?: string | null } => !!a);
+      editor.setDraft((d) => (d ? { ...d, imageAssets: next, imageUrls: next.map((a) => a.url) } : d));
+      return;
+    }
     const res = await setWorkspaceItemPhotos(tenantId, item.id, nextIds);
     if (!res.ok) {
       setError(res.error);
@@ -48,11 +56,12 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
       body.set("tenantId", tenantId);
       const resp = await fetch("/api/admin/media/upload", { method: "POST", body });
       const json = (await resp.json().catch(() => null)) as { ok?: boolean; item?: { id?: string }; error?: string } | null;
-      if (!resp.ok || !json?.ok || !json.item?.id) {
+      const up = json?.item as { id?: string; publicUrl?: string; url?: string } | undefined;
+      if (!resp.ok || !json?.ok || !up?.id) {
         setError(json?.error ?? t("dashboard.catalog.details.photosFailed"));
         return;
       }
-      await apply(nextPhotoIds(ids, { add: [json.item.id] }));
+      await apply(nextPhotoIds(ids, { add: [up.id] }), { id: up.id, url: up.publicUrl ?? up.url ?? "" });
     } catch {
       setError(t("dashboard.catalog.details.photosFailed"));
     } finally {
@@ -61,12 +70,11 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
     }
   }
 
-  const locked = isDraft || !item.id;
   return (
     <Field
       label={t("dashboard.catalog.details.photos")}
-      reason={locked ? t("dashboard.catalog.details.photosSaveFirst") : null}
-      hint={locked ? null : t("dashboard.catalog.details.photosHint")}
+      reason={null}
+      hint={t("dashboard.catalog.details.photosHint")}
       className="col-span-2"
     >
       <div className="flex flex-wrap items-center gap-[8px]" data-testid="catalog-field-photos-list">
@@ -103,6 +111,10 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
             onBlur={(e) => {
               const v = e.target.value.trim();
               if (v === (a.alt ?? "")) return;
+              if (isDraft) {
+                editor.setDraft((d) => (d ? { ...d, imageAssets: assets.map((x) => (x.id === a.id ? { ...x, alt: v || null } : x)) } : d));
+                return;
+              }
               void setWorkspacePhotoAlt(tenantId, a.id, v).then((res) => {
                 if (!res.ok) setError(res.error);
                 else editor.syncImages(item.id, assets.map((x) => (x.id === a.id ? { ...x, alt: v || null } : x)));
@@ -117,7 +129,7 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
             ref={fileRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            disabled={locked || busy}
+            disabled={busy}
             onChange={(e) => void onPick(e.target.files?.[0])}
             className={`${INPUT} min-w-0 flex-1 py-[6px]`}
             data-testid="catalog-field-photos"

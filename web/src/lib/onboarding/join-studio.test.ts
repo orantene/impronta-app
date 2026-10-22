@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { existingStudioState } from "./join-studio";
 import { JS_ERRORS } from "../../components/settings/join-studio-copy";
 import { parseStudioReference } from "./join-studio";
 
@@ -77,7 +78,16 @@ test("TUL-1862 / TUL-1690: a staging /w link resolves through the env-derived ho
 test("TUL-1882: an approved talent gets 'already part of this studio', not a generic failure", () => {
   const src = read("src/lib/server-actions/join-studio.ts");
   assert.match(src, /agency_talent_roster/);
-  assert.match(src, /code: "already_member"/);
+  assert.match(src, /existingStudioState\(/);
   assert.equal(JS_ERRORS.already_member.es, "Ya eres parte de este estudio.");
   assert.equal(JS_ERRORS.already_member.en, "You're already part of this studio.");
+});
+
+test("TUL-1882: an active or approved talent is a member, a pending one is waiting, a removed one may ask again", () => {
+  assert.equal(existingStudioState(["active"], 0), "already_member");
+  assert.equal(existingStudioState(["pending"], 0), "already_pending");
+  assert.equal(existingStudioState([], 1), "already_member");
+  assert.equal(existingStudioState(["removed"], 1), null);
+  assert.equal(existingStudioState(["inactive"], 0), null);
+  assert.equal(existingStudioState([], 0), null);
 });

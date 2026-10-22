@@ -28,9 +28,9 @@
  * wrong one thinks the studio is full when the studio is fine.
  */
 
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
-import type { PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
+import type { PickerOffering, PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
 import { money } from "./ticket-picker-copy";
 
 type Locale = "en" | "es";
@@ -56,6 +56,7 @@ function newOrderKey(): string {
 const COPY: Record<Locale, Record<string, string>> = {
   en: {
     heading: "Pick a date",
+    chooseClass: "Class",
     loading: "Loading dates...",
     none: "No dates are open just now.",
     seatsLeft: "{n} left",
@@ -88,6 +89,7 @@ const COPY: Record<Locale, Record<string, string>> = {
   },
   es: {
     heading: "Elige una fecha",
+    chooseClass: "Clase",
     loading: "Cargando fechas...",
     none: "No hay fechas abiertas por ahora.",
     seatsLeft: "quedan {n}",
@@ -251,6 +253,11 @@ export function SessionPickerIsland({
     offeringId.trim() || null,
   );
   const [hidden, setHidden] = useState(false);
+  // TUL-1381: with no configured class, every class that has dates is listed and
+  // the guest picks one. Price, currency and dates then come from THAT class.
+  const loadSeq = useRef(0);
+  const [classes, setClasses] = useState<PickerOffering[]>([]);
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   // NOT CONFIGURED IS NOT AN OUTAGE.
   //
@@ -280,17 +287,22 @@ export function SessionPickerIsland({
       const actions = await getActions();
       let offering = (offeringId ?? "").trim();
       if (!offering) {
-        const resolved = await actions.resolveSessionPickerOffering({ tenantId: tenant });
-        if (!resolved.ok) {
+        const listed = await actions.listSessionPickerOfferings({ tenantId: tenant });
+        if (!listed.ok) {
           setHidden(true);
           setSessions([]);
           return;
         }
-        offering = resolved.offeringId;
+        setClasses(listed.offerings);
+        offering =
+          (pickedId && listed.offerings.find((o) => o.id === pickedId)?.id) || listed.offerings[0].id;
         setBoundOfferingId(offering);
       }
       setHidden(false);
+      const seq = ++loadSeq.current;
       const result = await actions.loadSessionPicker({ tenantId: tenant, offeringId: offering });
+      // A slower answer for a class the guest has since left must not overwrite the current one.
+      if (seq !== loadSeq.current) return;
       if (result.ok) {
         setSessions(result.sessions);
         setPrice({ amountCents: result.amountCents, currency: result.currency });
@@ -304,11 +316,23 @@ export function SessionPickerIsland({
       setSessions([]);
       setRefusal(t("unavailable"));
     }
-  }, [tenantId, offeringId, loc, getActions]);
+  }, [tenantId, offeringId, pickedId, loc, getActions]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function chooseClass(id: string) {
+    if (id === (boundOfferingId ?? "")) return;
+    // A different class is a different cart: its dates, price and currency replace the old ones.
+    setPickedId(id);
+    setBoundOfferingId(id);
+    setChosen(null);
+    setSessions(null);
+    setPrice({ amountCents: null, currency: classes.find((o) => o.id === id)?.currency ?? "" });
+    setRefusal(null);
+    setOrderKey(newOrderKey());
+  }
 
   async function book() {
     if (!chosen || busy) return;
@@ -381,6 +405,23 @@ export function SessionPickerIsland({
   return (
     <div data-session-picker="root" style={{ padding: 16 }}>
       {title ? <h3 style={{ margin: "0 0 4px" }}>{title}</h3> : null}
+      {classes.length > 1 ? (
+        <label style={{ display: "block", margin: "0 0 12px" }}>
+          {t("chooseClass")}
+          <select
+            data-session-picker="class"
+            value={boundOfferingId ?? ""}
+            onChange={(e) => chooseClass(e.target.value)}
+            style={FIELD_STYLE}
+          >
+            {classes.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div style={{ margin: "0 0 12px", fontWeight: 600 }}>{t("heading")}</div>
 
       {sessions === null ? (

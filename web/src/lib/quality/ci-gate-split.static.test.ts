@@ -188,3 +188,26 @@ test("consumers of the check name still match", () => {
   assert.match(rerun, /select\(\.name == "Structural quality gate"\)/);
   assert.match(rerun, /startswith\("Gate policy"\)/);
 });
+
+test("TUL-838: the aggregator waits on the billing E2E compile job, which is path-filtered inside the job", () => {
+  const gateNeeds = byId("gate").text.match(/^ {4}needs: \[([^\]]*)\]$/m)?.[1] ?? "";
+  assert.match(gateNeeds, /\bbilling_e2e\b/);
+  const b = byId("billing_e2e");
+  assert.match(b.text, /^ {4}needs: policy$/m);
+  assert.match(b.text, /playwright test -c playwright\.billing\.config\.ts --list/);
+  // Job-level `if` must not skip on path (a skipped need fails the verdict); the filter is a step.
+  assert.doesNotMatch(b.text, /^ {4}if: .*paths/m);
+  // Checkout/npm ci only when billing paths changed, so other PRs add seconds, not minutes.
+  const heavy = b.text.split(/^ {6}- name: /m).filter((x) => /^(Checkout|Setup Node|Install dependencies|billing E2E)/.test(x));
+  assert.equal(heavy.length, 4);
+  for (const step of heavy) assert.match(step, /if: \$\{\{ steps\.detect\.outputs\.changed == 'true' \}\}/);
+  // The path list matches billing-e2e.yml's own filter.
+  const wf = readFileSync(path.join(REPO_ROOT, ".github/workflows/billing-e2e.yml"), "utf8");
+  const paths = [...(wf.split(/^ {4}paths:\n/m)[1] ?? "").matchAll(/^ {6}- "([^"]+)"$/gm)].map((m) => m[1]);
+  assert.ok(paths.length >= 5, "billing-e2e.yml has a paths filter");
+  const grep = b.text.match(/grep -Eq '([^']+)'/)?.[1] ?? "";
+  for (const p of paths) {
+    const stem = p.replace(/\*\*$/, "").replace(/\*pricing\*$/, "").replace(/\./g, "\\\\.");
+    assert.ok(grep.includes(stem.replace(/\\\\\./g, "\\.")), `ci.yml billing filter covers ${p}`);
+  }
+});

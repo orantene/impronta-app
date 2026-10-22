@@ -90,6 +90,10 @@ on:
 # wrong; the platform simply stopped shipping, and it got worse the more work
 # the team landed.
 #
+# TUL-1403: pushes to main are in their own per-SHA group (never shared with a
+# PR ref, so a PR run can neither queue them nor cancel them) and never cancel.
+# Pinned by ci-priority.static.test.ts.
+#
 # Runs on main now queue instead of cancelling. The cost is compute already
 # being spent on runs that were thrown away.
 concurrency:
@@ -142,6 +146,72 @@ jobs:
             echo "::error::Ordinary PRs ship inside an integ/* batch, whose gate covers them. To merge this PR on its own, add the full-ci label; this check then re-runs on its own."
             exit 1
           fi
+
+  # ── Billing E2E (TUL-838) ───────────────────────────────────────────────────
+  # billing-e2e.yml is path-filtered, and a path-filtered workflow cannot be a
+  # required check (it never reports on PRs that skip it, so the merge would
+  # wait forever). Actions also cannot `needs:` a job in another workflow. So the
+  # part of it that runs on PRs (the Playwright suite compiles and lists; staging
+  # does not run the PR's code) is mirrored here, and the aggregator waits on it.
+  # The same path filter applies INSIDE the job: a PR that touches no billing
+  # path finishes this job in seconds after one API call (no checkout, no npm
+  # ci), so it never delays the verdict. Keep the path list in sync with
+  # billing-e2e.yml (pinned by ci-gate-split.static.test.ts). The real staging
+  # run stays workflow_dispatch in billing-e2e.yml.
+  billing_e2e:
+    name: Gate — billing E2E suite compiles
+    needs: policy
+    if: ${{ needs.policy.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Detect billing paths in this PR
+        id: detect
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$IS_PR" != "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Not a PR: billing-e2e.yml also runs on PRs only."
+            exit 0
+          fi
+          # Fail safe: if the file list cannot be read, run the check.
+          if ! gh api "repos/$GH_REPO/pulls/$PR_NUMBER/files" --paginate -q '.[].filename' > "$RUNNER_TEMP/files.txt"; then
+            echo "::warning::could not list PR files; running the billing check"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if grep -Eq '^(web/src/lib/stripe/|web/src/lib/billing/|web/src/lib/access/|web/src/components/marketing/[^/]*pricing[^/]*$|web/e2e-billing/|web/playwright\.billing\.config\.ts$|\.github/workflows/billing-e2e\.yml$)' "$RUNNER_TEMP/files.txt"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No billing paths touched; nothing to compile."
+          fi
+
+      - name: Checkout
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        working-directory: web
+        run: npm ci
+
+      - name: billing E2E — suite compiles and lists (no staging run)
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        working-directory: web
+        run: npx playwright test -c playwright.billing.config.ts --list
 
   # ── Fast pre-check (TUL-1770 follow-up) ─────────────────────────────────────
   # The cheap, high-signal part of the gate, run FIRST. Every heavy job below
@@ -1129,7 +1199,7 @@ jobs:
   gate:
     name: Structural quality gate
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
-    needs: [policy, precheck, build, static, tests_a, tests_b]
+    needs: [policy, precheck, build, static, tests_a, tests_b, billing_e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

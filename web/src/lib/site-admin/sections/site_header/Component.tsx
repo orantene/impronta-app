@@ -17,7 +17,7 @@ import { siteHeaderLabels } from "@/i18n/site-header-labels";
 import { accountPreviewMode } from "@/lib/client-account/account-preview";
 import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
-import { localiseSeededHomeLabel } from "./seeded-home-label";
+import { isSeededHomeHref, localiseSeededHomeLabel } from "./seeded-home-label";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { resolveShellBrandTagline } from "@/lib/site-admin/server/shell-brand-tagline";
@@ -325,7 +325,7 @@ export async function SiteHeaderComponent({
     navItems.map((item) => {
       const L = resolveLinkLike(item.href, linkCtx);
       return {
-        label: localiseSeededHomeLabel(item.label, L.href === homeNavHref, locale),
+        label: localiseSeededHomeLabel(item.label, isSeededHomeHref(L.href, homeNavHref), locale),
         href: L.href,
         external: item.external || L.openInNew,
       };

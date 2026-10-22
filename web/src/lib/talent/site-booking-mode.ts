@@ -44,8 +44,21 @@ export function modeWord(mode: TalentBookingPosture, locale: string): string {
   return mode === "instant" ? "Instant" : mode === "request" ? "Request" : "Inquiry";
 }
 
-export function overrideBadgeLabel(mode: TalentBookingPosture, locale: string): string {
-  return `${isEs(locale) ? "Cambia el ajuste de tu sitio" : "Overrides your site setting"}: ${modeWord(mode, locale)}`;
+/** The site setting as the owner reads it on the Defaults screen ("Reserva instantánea"). */
+function siteWord(mode: TalentBookingPosture, locale: string): string {
+  if (isEs(locale)) return mode === "instant" ? "Reserva instantánea" : mode === "request" ? "Por solicitud" : "Solo consulta";
+  return mode === "instant" ? "Instant booking" : mode === "request" ? "Request" : "Inquiry only";
+}
+
+/**
+ * What THIS service does, then what the site does: "Este servicio: Por solicitud (tu sitio: Reserva
+ * instantánea)". The old "Cambia el ajuste de tu sitio: Por solicitud" read as if the site were
+ * being changed to the named mode (staging QA 2026-10-22).
+ */
+export function overrideBadgeLabel(mode: TalentBookingPosture, locale: string, site?: TalentBookingPosture | null): string {
+  const own = `${isEs(locale) ? "Este servicio" : "This service"}: ${modeWord(mode, locale)}`;
+  if (!site) return own;
+  return `${own} (${isEs(locale) ? "tu sitio" : "your site"}: ${siteWord(site, locale)})`;
 }
 
 export function inheritedModeLabel(mode: TalentBookingPosture, locale: string): string {

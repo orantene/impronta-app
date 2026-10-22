@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readRosterRequestMeta } from "@/lib/service-hub/roster-request-meta";
 import { renderCard } from "./cards";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND, TALENT_THREAD, type InquiryThreadType } from "./thread-rule";
 import type { CardKind, ThreadMessage } from "./types";
@@ -68,6 +69,7 @@ export async function loadMessagingThread(
     fromAi: row.metadata?.from_ai === true || row.metadata?.author_kind === "booking_assistant",
     aiDisclosureLabel:
       typeof row.metadata?.disclosure_label === "string" ? row.metadata.disclosure_label : null,
+    rosterRequest: readRosterRequestMeta(row.metadata),
   }));
   // TUL-955: the request the guest typed is the inquiry's own `message`, not an inquiry_messages
   // row, so the opened thread started at the first reply. Lead the stream with it (client side,

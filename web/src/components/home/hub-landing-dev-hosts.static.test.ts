@@ -26,5 +26,5 @@ test("TUL-978: the list headlines the tenant name and keeps the domain as the su
   const { hubAgencyLabel } = await import("./hub-agency-list");
   assert.deepEqual(hubAgencyLabel({ hostname: "impronta.tulala.digital", name: " Impronta Models " }), { title: "Impronta Models", sub: "impronta.tulala.digital" });
   assert.deepEqual(hubAgencyLabel({ hostname: "x.tulala.digital", name: null }), { title: "x.tulala.digital", sub: null });
-  assert.match(landing, /select\("id, display_name"\)/);
+  assert.match(landing, /select\("id, display_name, slug"\)/);
 });

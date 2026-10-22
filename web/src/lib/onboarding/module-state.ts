@@ -105,6 +105,8 @@ export type PersistedModuleState = {
   /** 18+ confirmation before a public talent page goes live (age-gate.ts). */
   age18ConfirmedAt?: string;
   age18ConfirmedBy?: string;
+  /** TUL-1847: the 18+/Terms tick on the save step, so a reload keeps it. */
+  ageTermsTickedAt?: string;
   updatedAt?: string;
 };
 
@@ -169,6 +171,7 @@ export function parsePersistedModuleState(raw: unknown): PersistedModuleState {
   if (essentials) out.essentials = essentials;
   if (r.build && typeof r.build === "object" && !Array.isArray(r.build)) out.build = r.build as Record<string, unknown>;
   if (typeof r.age18ConfirmedAt === "string" && Number.isFinite(Date.parse(r.age18ConfirmedAt))) out.age18ConfirmedAt = r.age18ConfirmedAt;
+  if (typeof r.ageTermsTickedAt === "string" && Number.isFinite(Date.parse(r.ageTermsTickedAt))) out.ageTermsTickedAt = r.ageTermsTickedAt;
   if (typeof r.age18ConfirmedBy === "string") out.age18ConfirmedBy = r.age18ConfirmedBy;
   if (typeof r.updatedAt === "string") out.updatedAt = r.updatedAt;
   return out;

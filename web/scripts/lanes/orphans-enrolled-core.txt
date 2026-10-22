@@ -61,6 +61,7 @@ src/components/admin/shell/internal/messages-thread-helpers.test.ts
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
 src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
 src/components/admin/shell/internal/notification-count-bubbles.test.ts
+src/components/admin/shell/internal/page-modules/calendar-reservations.test.ts
 src/components/admin/shell/internal/page-modules/card-design-drift.test.ts
 src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.render.test.tsx
@@ -72,6 +73,7 @@ src/components/admin/shell/internal/page-modules/design-hub-copy.static.test.ts
 src/components/admin/shell/internal/page-modules/live3-01-mi-sitio-first-load.static.test.ts
 src/components/admin/shell/internal/page-modules/mobile-more-breakpoint.static.test.ts
 src/components/admin/shell/internal/page-modules/upgrade-celebration-gate.test.ts
+src/components/admin/shell/internal/page-modules/work-style-nav.static.test.ts
 src/components/admin/shell/internal/palette-help-key.static.test.ts
 src/components/admin/shell/internal/primitives/DateFormatHint.test.tsx
 src/components/admin/shell/internal/profile-performance-i18n.static.test.ts
@@ -88,6 +90,7 @@ src/components/admin/shell/internal/talent/agenda/calendar-bounds.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-focus.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-sync.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-view.test.ts
+src/components/admin/shell/internal/talent/agenda/fee-line-wording.test.ts
 src/components/admin/shell/internal/talent/agenda/my-assignment-answer.render.test.tsx
 src/components/admin/shell/internal/talent/agenda/p0-panels.static.test.ts
 src/components/admin/shell/internal/talent/agenda/present.test.ts
@@ -145,6 +148,7 @@ src/components/onboarding/steps/save-step-consent.static.test.ts
 src/components/onboarding/steps/setup-hours-layout.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/posts/writer/editor-blocks.test.ts
+src/components/posts/writer/new-post-actions.test.ts
 src/components/public-booking/catalog-who-contact-1236.test.tsx
 src/components/public-header-mobile-menu-drawer.static.test.ts
 src/components/shared/ThreadShell.test.ts

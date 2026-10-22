@@ -223,3 +223,33 @@ test("a Stripe failure while pricing or confirming is logged with the step, not 
   assert.match(logged[1].context, /confirm\.stripe .*toPlan=studio/);
   assert.equal(logged[0].err, boom);
 });
+
+// ─── B6 / TUL-1874: the customer's language is set BEFORE the proration invoice exists ────────────────────────
+
+test("B6: an immediate change writes preferred_locales first, then updates the subscription", async () => {
+  const calls: Call[] = [];
+  const stripe = fakeStripe(fakeSub(), calls);
+  stripe.customers = {
+    update: (async (...args: unknown[]) => {
+      calls.push({ method: "customers.update", args });
+      return {};
+    }) as never,
+  };
+  const p = await previewPlanChange(stripe, req(), NOW);
+  assert.ok(p.ok);
+  const c = await confirmPlanChange(stripe, req({ locale: "es" }), p.prorationDate, NOW + 30_000);
+  assert.ok(c.ok);
+  const order = calls.map((x) => x.method).filter((m) => m === "customers.update" || m === "subscriptions.update");
+  assert.deepEqual(order, ["customers.update", "subscriptions.update"]);
+  assert.deepEqual(find(calls, "customers.update").args, ["cus_1", { preferred_locales: ["es"] }]);
+});
+
+test("B6: a failing locale write never blocks the plan change", async () => {
+  const calls: Call[] = [];
+  const stripe = fakeStripe(fakeSub(), calls);
+  stripe.customers = { update: (async () => { throw new Error("boom"); }) as never };
+  const p = await previewPlanChange(stripe, req(), NOW);
+  assert.ok(p.ok);
+  const c = await confirmPlanChange(stripe, req({ locale: "en" }), p.prorationDate, NOW + 30_000);
+  assert.ok(c.ok);
+});

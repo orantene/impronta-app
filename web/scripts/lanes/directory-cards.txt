@@ -4,6 +4,7 @@ src/components/directory/directory-talent-type-bar.grk055.static.test.ts
 src/components/directory/discovery-state-sync.test.ts
 src/components/directory/profile-discovery-cta.static.test.ts
 src/components/home/default-storefront-links.static.test.ts
+src/components/marketing/info-tip.static.test.ts
 src/components/marketing/marketing-loading.static.test.ts
 src/components/marketing/mkt-b-mobile-polish.static.test.ts
 src/lib/directory/agency-contact-href.test.ts

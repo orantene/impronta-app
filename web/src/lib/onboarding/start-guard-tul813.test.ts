@@ -42,5 +42,5 @@ for (const locale of ["es", "en"] as const) {
 
 test("TUL-813: the wizard shell renders the sub label next to the counter", () => {
   const src = readFileSync(join(process.cwd(), "src/components/onboarding/onboarding-module.tsx"), "utf8");
-  assert.match(src, /flowProgressLine\(state\.step, locale\)/);
+  assert.match(src, /flowProgressLine\(shownStep, locale\)/);
 });

@@ -11,6 +11,7 @@ import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import { deriveTicketSubject } from "./ticket-title";
 import { requestSupportLocale, supportHandoffBody, ticketHandoffLocale } from "./support-handoff-copy";
+import { escalationLogLine } from "./support-escalation-log";
 import { assignEscalationOwner } from "./escalation-owner";
 import {
   mapEventRow,
@@ -541,10 +542,11 @@ export async function escalateTicket(input: {
     },
   });
 
+  const handoffLocale = ticketHandoffLocale(ticket.metadata, await requestSupportLocale());
   auditTenant(
     ticket.tenantId,
     "support.ticket.escalated",
-    `Ticket #${ticket.ticketNumber} escalated to a human`,
+    escalationLogLine(handoffLocale, ticket.ticketNumber, input.reason),
     input.actorUserId,
     ticket.id,
   );
@@ -555,7 +557,7 @@ export async function escalateTicket(input: {
     authorUserId: null,
     messageKind: "card",
     skipNotify: true,
-    body: supportHandoffBody(ticketHandoffLocale(ticket.metadata, await requestSupportLocale())),
+    body: supportHandoffBody(handoffLocale),
     cardPayload: {
       kind: "handoff",
       ticketId: ticket.id,

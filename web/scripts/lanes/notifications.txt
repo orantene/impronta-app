@@ -54,6 +54,7 @@ src/lib/email/product-update/product-update.test.ts
 src/lib/email/reply-to.test.ts
 src/lib/email/resend-inbound-forward.test.ts
 src/lib/email/ticket-issued.test.ts
+src/lib/home/hub-agency-entries.test.ts
 src/lib/hub-link.test.ts
 src/lib/i18n/es-public-qa-round3.static.test.ts
 src/lib/i18n/es-public-site-correctness.test.ts

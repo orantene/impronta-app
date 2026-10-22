@@ -10,6 +10,8 @@
 export type PublicMember = {
   listingId: string;
   talentName: string;
+  /** The member's offering, so an instant entry can pin it in the booking widget. */
+  offeringId?: string | null;
   priceCents: number | null;
   currency: string;
   /** The database's own sellable check passed for this listing. */
@@ -71,7 +73,7 @@ export function shapePublicEntries(entries: readonly PublicEntryInput[]): Public
       currency: e.currency ?? members[0]?.currency ?? null,
       who: e.showWho === "name" ? [...new Set(members.map((m) => m.talentName).filter(Boolean))] : [],
       cta: e.bookingType === "instant" ? "book" : "request",
-      bookOfferingId: e.bookingType === "instant" ? e.ownOfferingId : null,
+      bookOfferingId: e.bookingType === "instant" ? (e.ownOfferingId ?? members.find((m) => m.offeringId)?.offeringId ?? null) : null,
       featured: e.featured,
     });
   }

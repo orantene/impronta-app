@@ -36,8 +36,8 @@ test("TUL-1901: lineup count uses singular for one and plural for many, en and e
   ] as const) {
     const g = cat.public.guestChat;
     assert.equal(g.systemLineupCountOne, one);
-    assert.equal(g.systemLineupCountOther, other);
-    const t = (k: string) => g[k.split(".").pop()!] as string;
+    assert.equal(g.systemLineupCount, other);
+    const t = (k: string) => g[k.split(".").pop()!] as string; // One key vs plain key
     assert.equal(localizeLineupNoteBody("Lineup · 1 talent", t), one.replace("{count}", "1"));
     assert.equal(localizeLineupNoteBody("Lineup · 3 talent", t), other.replace("{count}", "3"));
   }

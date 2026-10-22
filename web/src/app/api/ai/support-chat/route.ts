@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
 import { insightRowsToCorpus } from "@/lib/support/help-corpus";
+import { supportAiForcedError } from "@/lib/support/support-ai-fault";
 import { retrieveHelpEntriesForLocale } from "@/lib/support/help-corpus-locale";
 import {
   CHANGELOG_SYSTEM_RULE,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/changelog/support-grounding";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { shouldOfferHumanInsteadOfEscalating, supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
+import { readTakeover } from "@/lib/support/support-takeover";
 import { decideAiTurn } from "@/lib/support/support-ai-turn";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
@@ -136,6 +138,7 @@ export async function POST(request: Request) {
         handledBy: access.ticket.handledBy,
         lastHumanReplyAt: lastHuman?.createdAt ?? null,
         escalatedAt: access.ticket.escalatedAt,
+        takenOver: readTakeover(access.ticket.metadata) !== null,
         now: new Date(),
       }) === "human_active"
     ) {
@@ -214,7 +217,9 @@ export async function POST(request: Request) {
       changelog,
     });
 
-    const completion = await Promise.race([
+    const completion = supportAiForcedError()
+      ? { ok: false as const, code: "forced_error", message: "forced_error" }
+      : await Promise.race([
       adapter.chatCompletion({
         systemPrompt: `${SYSTEM_PROMPT} ${supportAiLanguageDirective(appLocale)}`,
         userMessage,

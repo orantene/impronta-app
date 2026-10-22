@@ -116,3 +116,11 @@ test("TUL-609: a lane-test.cjs lane keeps no long inline path list (use scripts/
     .map(([lane, n]) => `${lane}: ${n} inline paths`);
   assert.deepEqual(inlineLong, []);
 });
+
+test("TUL-1185: .gitattributes keeps lane lists on the union merge driver; the sort check runs in the fast pre-check", () => {
+  const attrs = readFileSync(join(WEB_ROOT, "..", ".gitattributes"), "utf8");
+  assert.match(attrs, /^web\/scripts\/lanes\/\*\.txt\s+merge=union\s*$/m);
+  const ci = readFileSync(join(WEB_ROOT, "..", ".github", "workflows", "ci.yml"), "utf8");
+  const pre = ci.split(/\n {2}precheck:\n/)[1]?.split(/\n {2}build:\n/)[0] ?? "";
+  assert.match(pre, /node scripts\/lanes-sort\.cjs --check/);
+});

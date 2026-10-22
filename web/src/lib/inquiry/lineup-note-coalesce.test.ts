@@ -317,7 +317,7 @@ it("TUL-1238: the stored English lineup note is localised at render, other bodie
   const t = (k: string) =>
     k.endsWith("systemLineupCountOne")
       ? "Seleccion · {count} talento"
-      : k.endsWith("systemLineupCountOther")
+      : k.endsWith("systemLineupCount")
         ? "Seleccion · {count} talentos"
         : "Que la agencia recomiende";
   assert.equal(localizeLineupNoteBody("Lineup · 2 talent", t), "Seleccion · 2 talentos");

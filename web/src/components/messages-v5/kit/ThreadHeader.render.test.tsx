@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -13,7 +15,7 @@ test("desktop ready: back, avatar, name, identity pill, subject, channel, owner 
   assert.match(html, /data-thread-header="desktop"/);
   assert.match(html, /aria-label="Back"/);
   assert.match(html, /avatar lg/);
-  assert.match(html, /<b>Valentina Ruiz<\/b>/);
+  assert.match(html, /<b title="Valentina Ruiz">Valentina Ruiz<\/b>/);
   assert.match(html, /identity confirmed/);
   assert.match(html, /Beach wedding · Tulum · Aug 14 · 80 guests/);
   assert.match(html, /class="chan"[^>]*>.*Web chat/);
@@ -36,7 +38,7 @@ test("busy: Resolve reads Resolving and is aria-busy; done (resolved): Reopen re
 
 test("empty owner reads Assign with an anon avatar; a visitor reads Visitor with no identity yet", () => {
   const html = renderToStaticMarkup(<ThreadHeader {...base} essentials={ESSENTIALS_VISITOR} state={STATE_BARE} chips={[]} owner={null} subject="Table for 6 on Friday?" when={null} />);
-  assert.match(html, /<b>Visitor<\/b>/);
+  assert.match(html, /<b title="Visitor">Visitor<\/b>/);
   assert.match(html, /avatar anon lg/);
   assert.match(html, /no identity yet/);
   assert.match(html, /Assign/);
@@ -54,6 +56,12 @@ test("mobile: back, name, subject, channel · owner, more; one state row with on
 
 test("ES: the engine's English Visitor fallback name reads Visitante in the header", () => {
   const html = renderToStaticMarkup(<ThreadHeader {...base} copy={ES_COPY} essentials={{ ...ESSENTIALS_VISITOR, name: "Visitor" }} state={STATE_BARE} chips={[]} owner={null} subject="Mesa para 6" when={null} />);
-  assert.match(html, /<b>Visitante<\/b>/);
+  assert.match(html, /<b title="Visitante">Visitante<\/b>/);
   assert.doesNotMatch(html, />Visitor</);
+});
+
+test("header name carries a full-name title and the row can wrap so the name keeps room", () => {
+  const css = readFileSync(join(__dirname, "tokens.css"), "utf8");
+  assert.match(css, /\.th-head \.r1 \{[^}]*flex-wrap: wrap/);
+  assert.match(css, /\.th-head \.who \{[^}]*flex: 1 1 15rem/);
 });

@@ -7,6 +7,7 @@ import { SupportAgentAvatar } from "./SupportAgentAvatar";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
+import { readTakeover } from "@/lib/support/support-takeover";
 import type { SupportTicketRow } from "@/lib/support/support-types";
 
 export function SupportThreadStatusLine({
@@ -63,6 +64,7 @@ export function SupportThreadStatusLine({
     );
   }
   if (ticket.handledBy === "human") {
+    const taken = readTakeover(ticket.metadata);
     return (
       <div style={row}>
         <span
@@ -83,6 +85,7 @@ export function SupportThreadStatusLine({
           OT
         </span>
         <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+          {taken ? `${interpolate(t("dashboard.adminSupport.takenBy"), { name: taken.name })}. ` : null}
           {`${t("dashboard.adminSupport.humanHandling")}. `}
           {ticket.ticketNumber > 0
             ? interpolate(t("dashboard.adminSupport.ticketReceipt"), {

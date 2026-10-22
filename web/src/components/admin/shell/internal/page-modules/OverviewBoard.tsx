@@ -160,7 +160,7 @@ export function OverviewBoard() {
   const canBook = meetsRole(state.role, "manager");
   const needCount = snapshot?.needsYou.length ?? 0;
   const money = snapshot?.money;
-  const fmt = (cents: number) => formatMoneyCents(cents, money?.currency ?? "USD");
+  const fmt = (cents: number) => formatMoneyCents(cents, money?.currency ?? "MXN");
 
   const subline = snapshot
     ? [
