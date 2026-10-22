@@ -7,7 +7,7 @@ import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant";
+import { getCurrentUserTenants, getFreshUserTenants, type TenantMembership } from "@/lib/saas/tenant";
 
 // Helper-level UUID guard for tenant-id header values. The legitimate path
 // always sets a UUID via middleware (PostgreSQL `uuid` column), so anything
@@ -168,8 +168,10 @@ export const getTenantScopeBySlug = cache(
   async (slug: string): Promise<TenantScope | null> => {
     const session = await getCachedActorSession();
     if (!session.user) return null;
-    const memberships = await getCurrentUserTenants();
-    const membership = memberships.find((m) => m.slug === slug);
+    let membership = (await getCurrentUserTenants()).find((m) => m.slug === slug);
+    // TUL-1840: a memoised "not a member" must be confirmed against the DB
+    // before the caller 404s or redirects the owner away.
+    if (!membership) membership = (await getFreshUserTenants()).find((m) => m.slug === slug);
     if (!membership) return null;
     return { tenantId: membership.tenant_id, membership };
   },
