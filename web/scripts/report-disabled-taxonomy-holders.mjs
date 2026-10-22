@@ -10,12 +10,29 @@
  * Usage (from web/):
  *   node --env-file=.env.local scripts/report-disabled-taxonomy-holders.mjs [--tenant impronta]
  *
+ * Stranded talents (no other enabled term) also show the proposed nearest active
+ * type from the TUL-443 migration mapping (20261231431100, held in _pending_pm).
+ * The last lines count stranded rows with / without a mapping.
+ *
  * Output per holder: profile code, name, the switched-off term, whether the
  * talent also holds an ENABLED term of the same kind (safe to drop the orphan)
  * or has nothing else (needs a migrate target decision).
  * Exit code is 1 when any holdover exists (usable as a smoke check).
  */
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+
+// Single source for the nearest-active mapping: the held migration's VALUES list.
+const MIGRATION = new URL(
+  "../../supabase/migrations/_pending_pm/20261231431100_migrate_stranded_disabled_taxonomy_holders_tul443.sql",
+  import.meta.url,
+);
+const mapping = new Map(); // old slug -> { to, confidence }
+for (const m of readFileSync(MIGRATION, "utf8").matchAll(
+  /^\s+\('([a-z0-9-]+)','([a-z0-9-]+)','(exact|close|category)'/gm,
+)) {
+  mapping.set(m[1], { to: m[2], confidence: m[3] });
+}
 
 const args = process.argv.slice(2);
 const ti = args.indexOf("--tenant");
@@ -35,6 +52,8 @@ const { data: agencies, error: aErr } = await agencyQ;
 if (aErr) { console.error(aErr.message); process.exit(2); }
 
 let total = 0;
+let strandedMapped = 0;
+let strandedUnmapped = 0;
 for (const agency of agencies ?? []) {
   const { data: off } = await sb
     .from("agency_taxonomy_settings")
@@ -71,6 +90,9 @@ for (const agency of agencies ?? []) {
     .select("talent_profile_id, taxonomy_term_id")
     .in("talent_profile_id", ids);
   const offSet = new Set(offIds);
+  const targetSlugs = [...new Set([...mapping.values()].map((v) => v.to))];
+  const { data: targets } = await sb.from("taxonomy_terms").select("id, slug, archived_at").in("slug", targetSlugs);
+  const targetBySlug = new Map((targets ?? []).filter((t) => !t.archived_at).map((t) => [t.slug, t]));
 
   console.log(`\nTenant ${agency.slug}: ${rows.length} holdover row(s)`);
   for (const r of rows) {
@@ -79,12 +101,28 @@ for (const agency of agencies ?? []) {
       (h) => h.talent_profile_id === r.talent_profile_id && !offSet.has(h.taxonomy_term_id),
     ).length;
     const p = pById.get(r.talent_profile_id);
+    let verdict;
+    if (others > 0) {
+      verdict = `${others} other enabled term(s): orphan can be dropped`;
+    } else {
+      const m = mapping.get(t?.slug);
+      const target = m ? targetBySlug.get(m.to) : null;
+      const active = target && !offSet.has(target.id);
+      if (active) {
+        strandedMapped += 1;
+        verdict = `STRANDED -> proposed ${m.to} (${m.confidence})`;
+      } else {
+        strandedUnmapped += 1;
+        verdict = "STRANDED -> NO mapping, needs a decision";
+      }
+    }
     console.log(
       `  ${p?.profile_code ?? r.talent_profile_id} (${p?.display_name ?? "?"}) holds ${t?.slug} [${t?.kind}]` +
-        `${r.is_primary ? " primary" : ""} -> ${others > 0 ? `${others} other enabled term(s): orphan can be dropped` : "NO other enabled term: needs a migrate target"}`,
+        `${r.is_primary ? " primary" : ""} -> ${verdict}`,
     );
   }
   total += rows.length;
 }
 console.log(`\nTotal holdover rows: ${total}`);
+console.log(`Stranded rows with a proposed target: ${strandedMapped}; stranded rows with no mapping: ${strandedUnmapped}`);
 process.exit(total > 0 ? 1 : 0);
