@@ -1,7 +1,7 @@
 /**
- * TUL-639: the main CTA follows how the talent sells, from ONE helper. Never
- * hardcoded per theme. Instant booking = Reservar cita / Book an appointment;
- * request or quote only = Solicitar / Request; message-first = Escríbeme / Message me.
+ * TUL-639: each theme keeps its own seed CTA wording; the booking label
+ * (Reservar cita / Book an appointment) shows ONLY when booking is instant.
+ * Booking-worded seeds (Maison) still follow the mode at render.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -10,7 +10,7 @@ import { test } from "node:test";
 
 import { buildDefaultShellTree } from "./default-max-site-trees";
 import { localiseTalentHeaderDefaults } from "./header-cta-locale";
-import { mainCtaLabel, mainCtaModeFromPosture, mainCtaModeFromServiceMode } from "./main-cta";
+import { mainCtaLabel, mainCtaModeFromPosture, mainCtaModeFromServiceMode, themeSeedCtaLabel } from "./main-cta";
 
 test("the rule, ES and EN", () => {
   assert.equal(mainCtaLabel("instant", "es"), "Reservar cita");
@@ -45,10 +45,23 @@ function headerCtaLabel(tree: ReturnType<typeof buildDefaultShellTree>): string 
   return header.props.sectionProps.primaryCta.label;
 }
 
-test("a new site's shell seed takes its header CTA from the selling mode", () => {
+test("a new site's shell seed shows the booking label ONLY for instant booking; otherwise the seed's own wording", () => {
   assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "instant" })), "Book an appointment");
-  assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "request" })), "Request an appointment");
-  assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "message" })), "Message me");
+  for (const mode of ["request", "message", "buy"] as const) {
+    assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: mode })), "Inquire", mode);
+  }
+});
+
+test("themeSeedCtaLabel keeps each theme's seed unless booking is instant", () => {
+  for (const seed of ["Consultar", "Solicitar cita", "Escríbeme", "Comprar"]) {
+    assert.equal(themeSeedCtaLabel(seed, "request", "es"), seed);
+    assert.equal(themeSeedCtaLabel(seed, "message", "es"), seed);
+    assert.equal(themeSeedCtaLabel(seed, "buy", "es"), seed);
+    assert.equal(themeSeedCtaLabel(seed, null, "es"), seed);
+    assert.equal(themeSeedCtaLabel(seed, undefined, "es"), seed);
+    assert.equal(themeSeedCtaLabel(seed, "instant", "es"), "Reservar cita");
+  }
+  assert.equal(themeSeedCtaLabel("Inquire", "instant", "en"), "Book an appointment");
 });
 
 test("with no selling mode the legacy seed is unchanged, so existing sites keep their saved text", () => {
@@ -72,10 +85,10 @@ test("the new tests are enrolled in a lane so CI runs them", () => {
   assert.ok(lanes.includes("src/lib/talent-site/main-cta-real-mode.test.ts"));
 });
 
-test("no theme hardcodes the old inquiry CTA wording: the Folio demo footer uses the helper", () => {
+test("the Folio demo footer keeps Folio's own seed wording (no mode rewrite)", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/talent-site/demos/folio-demo-fixtures.ts"), "utf8");
-  assert.doesNotMatch(src, /cta: lang === "es" \? "Consultar" : "Inquire"/);
-  assert.match(src, /mainCtaLabel\(/);
+  assert.match(src, /cta: lang === "es" \? "Consultar" : "Inquire"/);
+  assert.doesNotMatch(src, /mainCtaLabel\(/);
 });
 
 test("the shell seed's CTA target follows the mode: instant keeps the retargetable seed, others point where they act", () => {
