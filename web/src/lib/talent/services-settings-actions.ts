@@ -1,5 +1,6 @@
 "use server";
 
+import { publicSubdomainHost } from "@/lib/brand/public-root-domain";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
@@ -270,7 +271,7 @@ export async function loadOfferingDestinations(
     destinations.push({
       id: "website",
       label: "Your website",
-      href: `https://${site.site_slug}.tulala.digital/`,
+      href: `https://${publicSubdomainHost(site.site_slug)}/`,
       enquiryTo: auth.profile.display_name ?? "You",
     });
   }

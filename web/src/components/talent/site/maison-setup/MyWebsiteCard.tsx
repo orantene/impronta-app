@@ -5,6 +5,7 @@
  * one primary Edit site, labeled secondary actions, presence tiles below.
  */
 
+import { publicSubdomainHost } from "@/lib/brand/public-root-domain";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
@@ -322,7 +323,7 @@ export function MyWebsiteCard({
         return publicSiteUrl.replace(/^https?:\/\//, "").split("/")[0] ?? "";
       }
     }
-    return siteSlug ? `${siteSlug}.tulala.digital` : "";
+    return siteSlug ? publicSubdomainHost(siteSlug) : "";
   })();
   const since = formatSince(publishedAt, locale);
 
