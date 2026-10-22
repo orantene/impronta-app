@@ -32,6 +32,17 @@ test("concurrency stays per-ref; no shared ordinary-PR pool", () => {
   assert.doesNotMatch(ci, /ordinary-pr-pool/);
 });
 
+test("TUL-1403: main pushes have their own per-SHA group and never cancel", () => {
+  const m = ci.match(/\nconcurrency:\n\s+group: (.+)\n\s+cancel-in-progress: (.+)\n/);
+  assert.ok(m, "ci.yml concurrency block");
+  // On main the key is the commit SHA: never shared with a PR ref, so a PR run cannot queue or cancel it.
+  assert.match(m[1], /github\.ref == 'refs\/heads\/main' && github\.sha/);
+  // Only non-main refs cancel; main is never cancelled (promote needs a verdict on each commit).
+  assert.equal(m[2].trim(), "${{ github.ref != 'refs/heads/main' }}");
+  // The fast pre-check stays first: it needs only the policy job.
+  assert.match(ci, /\n {2}precheck:\n[\s\S]*?\n {4}needs: policy\n/);
+});
+
 test("the gate's first step is the policy step, reading labels live", () => {
   const steps = ci.split("\n    steps:\n")[1] ?? "";
   assert.match(steps.trimStart(), /^- name: Gate policy \(ordinary PRs ship via an integ batch\)\n\s+id: policy/);

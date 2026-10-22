@@ -51,6 +51,8 @@ export async function sendMessage(
     body: string;
     /** Optional threaded-reply anchor (inquiry_messages.reply_to_message_id). */
     replyToMessageId?: string | null;
+    /** Extra structured metadata for the row (e.g. TUL-1415 `roster_request`). Never trusted input: callers sanitize. */
+    metadata?: Record<string, unknown>;
   },
 ): Promise<EngineResult<{ messageId: string }>> {
   const isGuestSender = !ctx.actorUserId && !!ctx.guestSessionId;
@@ -93,7 +95,7 @@ export async function sendMessage(
       sender_user_id: isGuestSender ? null : ctx.actorUserId,
       guest_session_id: isGuestSender ? ctx.guestSessionId : null,
       body: ctx.body,
-      metadata: {},
+      metadata: { ...(ctx.metadata ?? {}) },
       ...(ctx.replyToMessageId ? { reply_to_message_id: ctx.replyToMessageId } : {}),
     });
     const row = written.data;

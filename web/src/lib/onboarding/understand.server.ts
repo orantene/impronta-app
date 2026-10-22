@@ -11,6 +11,7 @@ import "server-only";
  * `missing`, so the module degrades to the short form instead of failing.
  */
 
+import type { Essentials } from "./essentials";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { getResolvedAiChatKind, isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { resolveFailoverChat, resolveRoutedChat } from "@/lib/ai/call-routing.server";
@@ -74,12 +75,14 @@ export async function understandingFor(input: {
   intent: OnboardingIntent;
   userPath: OnboardingPath | null;
   locale?: "en" | "es";
+  essentials?: Essentials | null;
 }): Promise<{ understanding: Understanding; chip: TypeChipProposal | null }> {
   const understanding = buildUnderstanding({
     brief: input.brief,
     intent: input.intent,
     userPath: input.userPath,
     locale: input.locale,
+    essentials: input.essentials,
   });
   const chip = understanding.typeChip
     ? await proposeTypeChip({

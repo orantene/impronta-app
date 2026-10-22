@@ -7,7 +7,7 @@
  */
 
 import { planIntentLabel, upgradeHrefFromToday, workspaceUpgradeHref, type PlanIntent } from "@/lib/onboarding/plan-intent";
-import { draftFixList, draftReasonKey, draftSawKey, draftSupportLine, type ArrivalPayload } from "@/lib/onboarding/arrival";
+import { draftFixList, draftReasonKey, draftSawKey, draftSupportParts, type ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
@@ -253,7 +253,7 @@ function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string;
       reason={arrival.draftReason ? t(draftReasonKey(arrival)) : undefined}
       reasonCode={arrival.draftReason}
       saw={arrival.draftReason ? (() => { const k = draftSawKey(arrival); return t(k.key).replace("{status}", String(k.status ?? "")); })() : undefined}
-      supportLine={draftSupportLine(arrival)}
+      supportLine={(() => { const p = draftSupportParts(arrival); return p.keys.map((k) => t(k).replace("{status}", String(p.status ?? ""))).join(" · "); })()}
       retryLabel={t("public.onboarding.arrival.retryPublish")}
       fixes={arrival.draftReason ? draftFixList(arrival).map((f) => ({ text: t(f.key), href: f.action === "retry" ? undefined : arrival.editorHref })) : undefined}
       onRetry={onRetry}
@@ -285,7 +285,7 @@ function DraftBody({ t, title, sub, reason, reasonCode, saw, supportLine, retryL
       ) : null}
       <details className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-arrival-details">
         <summary className="cursor-pointer font-semibold">{t("public.onboarding.arrival.draftDetails")}</summary>
-        <p className="mt-1 break-words" data-testid="onb-arrival-support">{message ? `${message} (${variant})` : (supportLine || variant)}</p>
+        <p className="mt-1 break-words" data-testid="onb-arrival-support">{message ? message : (supportLine || t("public.onboarding.arrival.draftTech.unknown"))}</p>
       </details>
       <div className="mt-6 flex flex-col gap-2">
         {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{retryLabel ?? t("public.onboarding.arrival.retry")}</PrimaryButton> : null}

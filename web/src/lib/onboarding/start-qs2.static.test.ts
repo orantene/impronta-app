@@ -8,7 +8,7 @@ const read = (p: string) => readFileSync(new URL(`../../components/onboarding/${
 
 test("the 18+ tick survives leaving and returning to the save step", () => {
   assert.match(read("steps/save-step.tsx"), /initialAgeTerms/);
-  assert.match(read("onboarding-module.tsx"), /initialAgeTerms=\{ageTermsGiven\}/);
+  assert.match(read("onboarding-module.tsx"), /initialAgeTerms=\{ageTermsGiven( \|\| termsRestored)?\}/);
 });
 
 test("three screens no longer share one step number", () => {

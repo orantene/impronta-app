@@ -11,7 +11,7 @@ import { ArrivalStep } from "@/components/onboarding/steps/arrival-step";
 import { ReadyStep } from "@/components/onboarding/steps/ready-step";
 import { CatalogWhoContact } from "@/components/public-booking/catalog-who-contact";
 import { resolveVerifiedLiveBadge } from "@/components/talent/website-reward/useVerifiedLiveBadge";
-import { arrivalFromStamp, applyRetryCheck, draftSawKey, draftSupportLine } from "@/lib/onboarding/arrival";
+import { arrivalFromStamp, applyRetryCheck, draftSawKey, draftSupportParts } from "@/lib/onboarding/arrival";
 import { planOfferingWrites, type Essentials, type WeeklyEssentialHours } from "@/lib/onboarding/essentials";
 import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
 import { defaultWhere, whereChoicesForPlace, whereForPlace } from "@/lib/onboarding/service-where";
@@ -169,7 +169,7 @@ test("TUL-819: the HTTP status is kept and named", () => {
   const a = arrivalFromStamp({ ...draftInput, liveCheck: { ok: false, reason: "status", status: 404 }, published: false });
   assert.equal(a.draftStatus, 404);
   assert.deepEqual(draftSawKey(a), { key: "public.onboarding.arrival.draftSaw.status", status: 404 });
-  assert.equal(draftSupportLine(a), "draft_saved · status · HTTP 404");
+  assert.deepEqual(draftSupportParts(a), { keys: ["public.onboarding.arrival.draftTech.saved", "public.onboarding.arrival.draftTech.status"], status: 404 });
   const retry = applyRetryCheck(a, { ok: false, reason: "name_missing" });
   assert.equal(retry.draftStatus, undefined);
   assert.equal(draftSawKey(retry).key, "public.onboarding.arrival.draftSaw.nameMissing");
@@ -180,7 +180,7 @@ for (const locale of ["es", "en"] as const) {
     const a = arrivalFromStamp({ ...draftInput, liveCheck: { ok: false, reason: "status", status: 404 }, published: false });
     const html = renderToStaticMarkup(createElement(ArrivalStep, { t: lookup(locale), arrival: a, onRetry: () => {} }));
     assert.match(html, /data-testid="onb-arrival-saw"[^>]*>[^<]*404/);
-    assert.match(html, /data-testid="onb-arrival-support"[^>]*>draft_saved · status · HTTP 404</);
+    assert.match(html, /data-testid="onb-arrival-support"[^>]*>(?!draft_saved)[^<]*404</);
     assert.equal(html.match(/data-testid="onb-arrival-retry"/g)?.length, 1, "one primary retry");
   });
 }

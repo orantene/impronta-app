@@ -1831,6 +1831,7 @@
       "phone": "Phone",
       "quoteOnRequest": "Quote on request",
       "selectAtLeastOne": "Choose {nounPlural}",
+      "subtotal": "Subtotal",
       "chooseOption": "Choose an option",
       "extrasLabel": "Extras",
       "selectQuantities": "Select quantities",
@@ -2265,6 +2266,17 @@
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
         "draftDetails": "Details for support",
+        "draftTech": {
+          "saved": "Saved as a draft",
+          "status": "Address answered with error {status}",
+          "statusUnknown": "Address answered with an error",
+          "network": "Address did not answer",
+          "nameMissing": "Page opened without your name",
+          "noName": "Page has no name yet",
+          "noUrl": "Page has no address yet",
+          "protected": "Address is behind a sign-in wall",
+          "unknown": "Not confirmed yet"
+        },
         "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
@@ -11426,7 +11438,19 @@
         "promo": {
           "applied": "{code}: {label}"
         },
-        "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."
+        "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time.",
+        "keepTitle": "Choose who stays visible",
+        "keepIntro": "Free keeps up to {cap} talent visible and you have {count}. Pick who stays; the rest are archived, not deleted, and you can restore them any time.",
+        "keepCounter": "{selected} of {cap} selected",
+        "keepConfirm": "Move to Free",
+        "keepSaving": "Saving...",
+        "keepLoading": "Loading your roster...",
+        "keepLoadFailed": "We could not load your roster. Nothing was changed.",
+        "keepUnnamed": "Unnamed talent",
+        "keepCancel": "Back",
+        "scheduledOn": "Your paid plan ends on {date}, then your workspace moves to {plan}.",
+        "scheduledEnd": "Your paid plan ends at the end of this billing period, then your workspace moves to {plan}.",
+        "setTo": "Workspace plan set to {plan}."
       }
     },
     "adminIntegrationsCatalog": {
@@ -17121,7 +17145,8 @@
       "fired": "Fired {time}",
       "amendmentBanner": "{code} · ticket amended · revision {n} · acknowledge it again",
       "gotIt": "Got it",
-      "emptyTab": "Nothing at this step."
+      "emptyTab": "Nothing at this step.",
+      "viewOnly": "View only. Your role cannot start or finish tickets here."
     },
     "reservationsDesk": {
       "pageTitle": "Live Floor",
@@ -18720,7 +18745,6 @@
         "duration": "Duration (min)",
         "durationHint": "Services and classes; leave empty for a product.",
         "photos": "Photos",
-        "photosSaveFirst": "Save the item first, then add photos.",
         "photosHint": "The first photo is the cover. It shows on the table QR menu.",
         "photosAlt": "Describe the photo",
         "photosCover": "Cover",
@@ -19837,6 +19861,9 @@
         "internalNote": "Internal note",
         "you": "You",
         "replyingTo": "Replying to",
+        "rosterRequest": "Request",
+        "rosterParty": "For {count} people",
+        "rosterWhen": "When: {when}",
         "voice": "Voice message",
         "transcribed": "transcribed",
         "edited": "edited",

@@ -38,6 +38,7 @@ src/lib/billing/commission-processing-client-pays.test.ts
 src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
+src/lib/billing/downgrade-keep-list.test.ts
 src/lib/billing/fee-fail-closed.test.ts
 src/lib/billing/fee-reader-rpc-guards.static.test.ts
 src/lib/billing/hub-fee.test.ts
@@ -64,6 +65,7 @@ src/lib/billing/trial-race-retry-locale.test.ts
 src/lib/billing/trial-session-reconcile.test.ts
 src/lib/billing/workspace-downgrade-period-end.test.ts
 src/lib/billing/workspace-downgrade-stripe.test.ts
+src/lib/billing/workspace-free-downgrade.test.ts
 src/lib/billing/workspace-money-gates.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
@@ -450,6 +452,7 @@ src/lib/visits/commands.test.ts
 src/lib/visits/floor.test.ts
 src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
+src/lib/visits/prep-view-only.static.test.ts
 src/lib/visits/qr-multi-order.test.ts
 src/lib/visits/reservation-ops.test.ts
 src/lib/visits/restaurant-screens.render.test.ts

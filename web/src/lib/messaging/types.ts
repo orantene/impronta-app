@@ -1,3 +1,5 @@
+import type { RosterRequestMeta } from "@/lib/service-hub/roster-request-meta";
+
 export const CONVERSATION_STATES = ["needs_reply", "awaiting_customer", "resolved"] as const;
 export type ConversationState = (typeof CONVERSATION_STATES)[number];
 
@@ -197,6 +199,8 @@ export type ThreadMessage = {
   fromAi?: boolean;
   /** Guest/talent disclosure label when fromAi (e.g. "Automated reply"). */
   aiDisclosureLabel?: string | null;
+  /** TUL-1415: the structured roster request the guest's front-door chat built (lines, party, day). Request-only: no price. */
+  rosterRequest?: RosterRequestMeta | null;
 };
 
 export type CustomerMatchLevel = "phone" | "name_only" | "new";

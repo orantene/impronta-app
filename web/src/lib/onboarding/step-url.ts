@@ -4,6 +4,8 @@
  * Progress itself is restored by the saved-progress resume, not by the URL.
  * Pure, so it is unit tested.
  */
+import { isModuleStep, type ModuleStep } from "./module-state";
+
 const STEP = /^[A-Za-z][A-Za-z0-9-]{0,40}$/;
 
 export function urlWithStep(href: string, step: string | null | undefined): string {
@@ -40,6 +42,39 @@ export function planStepSync(stack: readonly string[], step: string | null | und
   if (TRANSIENT.has(step)) return { op: "replace", stack: [...stack.slice(0, -1), step] };
   if (stack.length > 1 && stack[stack.length - 2] === step) return { op: "back", stack: stack.slice(0, -1) };
   return { op: "push", stack: [...stack, step].slice(-MAX_STACK) };
+}
+
+/**
+ * TUL-812: where "Continue" lands. A `?step=` deep link wins when it names a
+ * settled screen at or before the saved one (the data is kept, so going back
+ * is safe); a step past the saved progress, an unknown name or a locked
+ * screen falls back to the saved step.
+ */
+export function resumeLandingStep(saved: string | null | undefined, urlStep: string | null | undefined): string | null {
+  if (!saved) return null;
+  if (!urlStep || LOCKED.has(saved) || LOCKED.has(urlStep)) return saved;
+  const to = TRANSIENT.has(urlStep) ? "entry" : urlStep;
+  const from = ORDER.indexOf(saved);
+  const dest = ORDER.indexOf(to);
+  if (from < 0 || dest < 0 || dest > from) return saved;
+  return to;
+}
+
+/** TUL-812: `resumeLandingStep` as a module step (undefined = keep the saved one). */
+export function landingStep(urlStep: string | null, saved: ModuleStep | undefined): ModuleStep | undefined {
+  const to = resumeLandingStep(saved, urlStep);
+  return isModuleStep(to) ? to : undefined;
+}
+
+/** TUL-812: the `?step=` of the page URL, or null (server render, bad URL). */
+export function urlStepOfLocation(href: string | null | undefined): string | null {
+  if (!href) return null;
+  try {
+    const v = new URL(href).searchParams.get("step");
+    return v && STEP.test(v) ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
