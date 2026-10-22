@@ -34,5 +34,5 @@ test("a band with real hours, a heading, or an owner-written line is kept", () =
 
 test("the container renderer hides it for visitors and keeps it for the editor preview", () => {
   const src = readFileSync(join(__dirname, "render.tsx"), "utf8");
-  assert.match(src, /!options\.contentLocale\?\.editorPreview && isEmptyPlaceholderBand\(node\)\) return null/);
+  assert.match(src, /!options\.contentLocale\?\.editorPreview && isEmptyPlaceholderBand\(node[^)]*\)\) return null/);
 });

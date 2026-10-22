@@ -123,7 +123,7 @@ test("TUL-1915: admin badge and public listing agree for every case", async () =
   const base = {
     talentProfileId: null,
     capacityPoolId: null,
-    durationMinutes: 30,
+    durationMinutes: 30 as number | null,
     kind: "service",
     bookingMode: "request" as string | null,
     status: "published",

@@ -9,6 +9,7 @@ function fakeBrowser(startUrl: string) {
   let idx = 0;
   let step: string | null = "choose";
   const gotos: string[] = [];
+  // eslint-disable-next-line prefer-const -- assigned below, after the fake browser object it closes over is built
   let history!: ReturnType<typeof createStepHistory>;
   const pending: Array<() => void> = [];
   const b = {

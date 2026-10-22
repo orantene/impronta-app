@@ -55,7 +55,7 @@ export function houseOnlineBooking(offering: {
   }
   if (offering.kind === "product") return { state: "not_offered", reason: "is_product" };
   if (offering.bookingMode === "inquiry") return { state: "not_offered", reason: "inquiry_only" };
-  if (!isSlotEligibleOffering({ ...offering, bookingMode: offering.bookingMode as TalentOffering["bookingMode"] }))
+  if (!isSlotEligibleOffering({ kind: offering.kind as TalentOffering["kind"], bookingMode: offering.bookingMode as TalentOffering["bookingMode"], durationMinutes: offering.durationMinutes }))
     return { state: "not_offered", reason: "no_duration" };
   return { state: "request" };
 }

@@ -4826,7 +4826,7 @@ function renderBuilderNodeElement(
       }
       // TUL-1812: a band that only says "X is not published yet" is a hint for
       // the owner. Visitors get nothing; the editor preview keeps the hint.
-      if (!options.contentLocale?.editorPreview && isEmptyPlaceholderBand(node)) return null;
+      if (!options.contentLocale?.editorPreview && isEmptyPlaceholderBand(node as unknown as Parameters<typeof isEmptyPlaceholderBand>[0])) return null;
       // REND-1: use the author-chosen semantic landmark tag (default: div).
       // All CSS classes, data-* attrs, and inline styles are preserved
       // regardless of tag — it is a pure drop-in replacement. Trees that
