@@ -62,3 +62,14 @@ test("TUL-1862 join studio: a studio with open applications ON files an applicat
   const card = read("src/components/settings/join-studio-card.tsx");
   assert.match(card, /href="\/talent\/discover-agencies"/);
 });
+
+test("TUL-1862 / TUL-1690: a staging /w link resolves through the env-derived hosts, and Discover has no production host literal", () => {
+  assert.deepEqual(parseStudioReference("https://app.staging.tulala.digital/w/bella-studio", ["app.staging.tulala.digital"]), { kind: "slug", slug: "bella-studio" });
+  assert.deepEqual(parseStudioReference("https://app.staging.tulala.digital/w/bella-studio"), { kind: "host", host: "app.staging.tulala.digital" });
+  const client = read("src/components/talent/apply/TalentApplyDiscoveryClient.tsx");
+  assert.doesNotMatch(client, /tulala\.(app|digital)/);
+  assert.match(client, /href=\{`\/w\/\$\{row\.slug\}`\}/);
+  assert.match(client, /applicationNote\(terms, message, lang\)/);
+  assert.doesNotMatch(read("src/components/settings/join-studio-copy.ts"), /tulala\.digital/);
+  assert.match(read("src/lib/server-actions/join-studio.ts"), /resolveMarketingOrigin\(\)/);
+});

@@ -9,6 +9,8 @@
 import { revalidatePath } from "next/cache";
 
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { getAppUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { parseStudioReference, type JoinStudioErrorCode } from "@/lib/onboarding/join-studio";
 import { loadOwnTalentProfileId, resolveJoinableStudio } from "@/lib/onboarding/join-studio.server";
 import { submitAgencyApplication } from "@/lib/talent/apply-actions";
@@ -25,6 +27,20 @@ export type JoinStudioResult =
 
 const REQUESTS_PER_HOUR = 10;
 
+/** Hostnames of this environment's app and marketing origins (staging hosts on staging). */
+function currentPlatformHosts(): string[] {
+  const hosts: string[] = [];
+  for (const origin of [getAppUrl(), resolveMarketingOrigin()]) {
+    try {
+      const h = new URL(origin).hostname.replace(/^www\./, "");
+      if (h.includes(".")) hosts.push(h);
+    } catch {
+      // a malformed env value just adds no host
+    }
+  }
+  return hosts;
+}
+
 export async function joinStudioAction(raw: string): Promise<JoinStudioResult> {
   if (!(await assertNotImpersonating()).ok) return { ok: false, code: "read_only" };
   const session = await getCachedActorSession();
@@ -32,7 +48,7 @@ export async function joinStudioAction(raw: string): Promise<JoinStudioResult> {
   if (!session.user || !admin) return { ok: false, code: "signed_out" };
   const userId = session.user.id;
 
-  const ref = parseStudioReference(typeof raw === "string" ? raw : "");
+  const ref = parseStudioReference(typeof raw === "string" ? raw : "", currentPlatformHosts());
   if (!ref) return { ok: false, code: "bad_address" };
   if (!tryConsumeRateLimit(`join-studio:${userId}`, REQUESTS_PER_HOUR, 60 * 60 * 1000)) {
     return { ok: false, code: "too_many" };
