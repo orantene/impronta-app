@@ -3,8 +3,8 @@ emails/support/AgentReply.test.ts
 src/app/(workspace)/talent/loading-inside-shell.static.test.ts
 src/app/admin/admin-not-found.static.test.ts
 src/app/admin/overview-hydration.static.test.ts
-src/components/admin/shell/internal/page-modules/overview-setup-expand.static.test.ts
 src/components/admin/shell/internal/domain-actions-derr-i18n.test.ts
+src/components/admin/shell/internal/page-modules/overview-setup-expand.static.test.ts
 src/components/admin/shell/internal/shell-boundary.render.test.tsx
 src/components/home/hub-landing-dev-hosts.static.test.ts
 src/components/marketing/support/contact-resume-only.static.test.ts

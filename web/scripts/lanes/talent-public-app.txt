@@ -54,8 +54,8 @@ src/app/t/?profileCode?/free-plan-storefront-parity.static.test.ts
 src/app/t/?profileCode?/grk052-placeholders.static.test.ts
 src/app/t/?profileCode?/hub-profile-es-labels.test.ts
 src/app/t/?profileCode?/noir-inquire-gate.static.test.ts
-src/app/t/[profileCode]/_chat/concierge-dock-polish.static.test.ts
 src/app/t/?profileCode?/solo-profile-copy.test.ts
+src/app/t/[profileCode]/_chat/concierge-dock-polish.static.test.ts
 src/app/template-preview/?key?/demo-preview-gate.test.ts
 src/app/template-preview/?key?/demo-preview-source.test.ts
 src/app/template-preview/?key?/preview-demo-guard.test.ts
