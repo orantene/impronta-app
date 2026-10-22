@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { clientNoticeKey, personChangedBody, sendPersonChangedNotice } from "./replace-client-notice.server";
+import { clientNoticeKey, noticeMessageRow, personChangedBody, sendPersonChangedNotice, stateDrift } from "./replace-client-notice.server";
 import { replaceTalentOnProject, type ReplaceDeps } from "./replace-with-notice.server";
 
 type Row = Record<string, unknown>;
@@ -114,4 +114,22 @@ test("replace: the client is messaged only for person_changed; a failed send nev
   assert.ok(failed.ok && failed.clientNotice === "person_changed" && failed.clientNoticeSent === false);
   const refused = await replaceTalentOnProject(fakeAdmin(replaceTables("name")), rin, base({ sendClientNotice: async () => ({ sent: false, reason: "failed" }) }));
   assert.ok(refused.ok && refused.clientNoticeSent === false);
+});
+
+test("TUL-1606: the note is a system line with no author, not a client message", () => {
+  const row = noticeMessageRow({ inquiryId: "i1", body: "x", key: "k" });
+  assert.equal(row.sender_user_id, null);
+  assert.equal(row.guest_session_id, null);
+  assert.equal(row.message_kind, "system_event");
+  assert.equal((row.metadata as Row).system_event_type, "roster_talent_swapped");
+  assert.equal((row.metadata as Row).notice_key, "k");
+});
+
+test("TUL-1606: stateDrift names exactly what a write moved, so the note can be undone to 'nobody's turn'", () => {
+  const before = { conversation_state: "awaiting_customer", last_customer_message_at: null, last_staff_message_at: "t1" };
+  assert.deepEqual(stateDrift(before, before), {});
+  assert.deepEqual(
+    stateDrift(before, { conversation_state: "needs_reply", last_customer_message_at: "t2", last_staff_message_at: "t1" }),
+    { conversation_state: "awaiting_customer", last_customer_message_at: null },
+  );
 });

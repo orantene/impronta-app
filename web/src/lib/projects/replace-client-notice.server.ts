@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { insertSystemMessage } from "@/lib/inquiry/inquiry-system-messages";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveTenantAckLocale } from "@/lib/inquiry/guest-auto-ack";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -27,6 +27,63 @@ export function personChangedBody(locale: string | null | undefined, eventTitle:
     return `Un pequeño cambio${title ? ` en ${title}` : " en tu reserva"}: la persona asignada cambió. Todo lo demás sigue igual.`;
   }
   return `A small update${title ? ` on ${title}` : " on your booking"}: the person assigned has changed. Everything else stays the same.`;
+}
+
+/**
+ * TUL-1606 (QA b11: the note showed as a Priya-authored thread marked "Necesita respuesta"):
+ * the note is a SYSTEM line, not a client message. Same shape as the workspace auto-ack:
+ * no sender, `message_kind: "system_event"` (the old insertSystemMessage left it at the column
+ * default "text", which readers take for a customer line) and `metadata.system_event_type`.
+ */
+export function noticeMessageRow(args: { inquiryId: string; body: string; key: string }): Record<string, unknown> {
+  return {
+    inquiry_id: args.inquiryId,
+    thread_type: "private",
+    sender_user_id: null,
+    guest_session_id: null,
+    message_kind: "system_event",
+    body: args.body,
+    metadata: { system_event_type: "roster_talent_swapped", notice_key: args.key },
+  };
+}
+
+type ThreadState = { conversation_state: string | null; last_customer_message_at: string | null; last_staff_message_at: string | null };
+const STATE_COLUMNS = "conversation_state, last_customer_message_at, last_staff_message_at";
+
+/** Which columns a write moved away from `before`; the note must move none of them. */
+export function stateDrift(before: ThreadState, after: ThreadState): Partial<ThreadState> {
+  const drift: Partial<ThreadState> = {};
+  for (const k of ["conversation_state", "last_customer_message_at", "last_staff_message_at"] as const) {
+    if (before[k] !== after[k]) drift[k] = before[k];
+  }
+  return drift;
+}
+
+async function readThreadState(admin: SupabaseClient, tenantId: string, inquiryId: string): Promise<ThreadState | null> {
+  const { data, error } = await admin.from("inquiries").select(STATE_COLUMNS).eq("id", inquiryId).eq("tenant_id", tenantId).maybeSingle();
+  if (error || !data) return null;
+  return data as ThreadState;
+}
+
+/**
+ * Posts the note and guarantees it is neither side's turn: the thread state is read before, and
+ * if the insert (a DB trigger on a database that predates the system-line exemption) moved it to
+ * "needs reply", the old values are put back.
+ */
+async function postSystemNotice(admin: SupabaseClient, tenantId: string, args: { inquiryId: string; body: string; key: string }): Promise<void> {
+  const before = await readThreadState(admin, tenantId, args.inquiryId);
+  const ins = await tenantScopedQuery(admin, "inquiry_messages", tenantId).insert(noticeMessageRow(args));
+  if (ins.error) {
+    logServerError("projects.clientNotice.insert", ins.error);
+    return;
+  }
+  if (!before) return;
+  const after = await readThreadState(admin, tenantId, args.inquiryId);
+  if (!after) return;
+  const drift = stateDrift(before, after);
+  if (Object.keys(drift).length === 0) return;
+  const fix = await tenantScopedQuery(admin, "inquiries", tenantId).update(drift).eq("id", args.inquiryId);
+  if (fix.error) logServerError("projects.clientNotice.restoreState", fix.error);
 }
 
 export type ClientNoticeDeps = {
@@ -86,16 +143,7 @@ export async function sendPersonChangedNotice(
     if (!locale) locale = await resolveTenantAckLocale(input.tenantId, { admin });
 
     const body = personChangedBody(locale, input.eventTitle);
-    const post =
-      deps.post ??
-      (async (a, args) =>
-        insertSystemMessage(a, {
-          inquiryId: args.inquiryId,
-          threadType: "private",
-          eventType: "roster_talent_swapped",
-          body: args.body,
-          metadata: { notice_key: args.key },
-        }));
+    const post = deps.post ?? ((a, args) => postSystemNotice(a, input.tenantId, args));
     await post(admin, { inquiryId, body, key });
     // insertSystemMessage swallows its own errors, so confirm the note really exists.
     const written = await alreadySent(admin, inquiryId, key);

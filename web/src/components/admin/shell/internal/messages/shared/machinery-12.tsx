@@ -23,7 +23,7 @@ import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
 import { TalentOfferApprovalCard } from "./talent-offer-approval-card";
 import { talentPayoutLabel } from "./talent-payout-label";
-import { selectTalentOfferView } from "./talent-offer-view";
+import { selectTalentOfferView, shouldMountLineConfirmations } from "./talent-offer-view";
 import type { SendGateResult } from "./offer-save-state";
 import { OfferTermsSummary } from "./offer-terms-ui";
 import { OfferLineConfirmations } from "./offer-line-confirmations";
@@ -621,8 +621,11 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               </div>
             )}
           </div>
-          {/* TUL-1608: booked / on-hold talent still answers their own line. */}
-          {hasOffer && realInquiryId && <OfferLineConfirmations inquiryId={conv.id} />}
+          {/* TUL-1607/1608 (QA b11: no Confirm/Decline on her own line): a per-line offer has no
+              talent approval row and the talent shell has no live offer list, so `hasOffer` is false
+              for a freshly SENT two-person offer. The panel decides for itself (own line, sent offer,
+              readable answers) and renders nothing otherwise, so it mounts for every real inquiry. */}
+          {shouldMountLineConfirmations(realInquiryId) && <OfferLineConfirmations inquiryId={conv.id} />}
         </div>
       );
     }
