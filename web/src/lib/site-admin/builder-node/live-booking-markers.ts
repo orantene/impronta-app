@@ -10,7 +10,7 @@
  * Pure module: no server imports, safe for client and unit tests.
  */
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringHidesPublicPrice, type TalentOffering } from "@/lib/talent/offerings-types";
 
 /** Band holding the services list. Live catalog replaces the static cards. */
 export const LIVE_SERVICES_LABEL = "Live services";
@@ -24,6 +24,8 @@ export type LiveServiceCard = {
   amountCents: number | null;
   currency: string;
   durationMinutes: number | null;
+  /** D-10a: on_request items carry no amount; the card shows a request path. */
+  onRequest: boolean;
   /** True when the visitor can pick a slot for it (a /book entry exists). */
   bookable: boolean;
 };
@@ -68,18 +70,20 @@ export function mergeServiceCards(
     currency: string;
     durationMinutes: number | null;
     kind: string;
+    visibility?: string | null;
   }>,
   bookableIds: ReadonlySet<string>,
 ): LiveServiceCard[] {
   return published
-    .filter((o) => o.kind !== "product")
+    .filter((o) => o.kind !== "product" && o.visibility !== "agency_only")
     .map((o) => ({
       id: o.id,
       title: o.title,
       description: o.description,
-      amountCents: o.amountCents,
+      amountCents: offeringHidesPublicPrice(o) ? null : o.amountCents,
       currency: o.currency || "USD",
       durationMinutes: o.durationMinutes,
+      onRequest: offeringHidesPublicPrice(o),
       bookable: bookableIds.has(o.id),
     }));
 }

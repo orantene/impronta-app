@@ -564,6 +564,15 @@ export function formatOfferingPrice(amountCents: number, currency: string, local
   return formatMoney(amountCents, currency, locale);
 }
 
+/**
+ * D-10a (TUL-1697): an on_request offering NEVER shows a price on any public
+ * surface (amount or "from"), only a request path. Every public renderer or
+ * loader that would print or emit an amount goes through these two helpers.
+ */
+export function offeringHidesPublicPrice(o: { visibility?: string | null }): boolean {
+  return o.visibility === "on_request";
+}
+
 /** The public price line: "$120 / session" · "from $450" · "Quote on request" · "On request". */
 export function offeringPriceLabel(
   o: Pick<TalentOffering, "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility">,

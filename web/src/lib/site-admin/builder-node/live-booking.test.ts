@@ -10,7 +10,8 @@ import {
   LIVE_SERVICES_LABEL,
   mergeServiceCards,
 } from "./live-booking-markers";
-import { formatServicePrice, serviceBookHref, serviceMetaLine } from "./live-booking-bands";
+import { renderToStaticMarkup } from "react-dom/server";
+import { LiveServicesBand, formatServicePrice, serviceBookHref, serviceMetaLine } from "./live-booking-bands";
 import type { BuilderNode } from "./types";
 
 const ctx = {
@@ -62,7 +63,7 @@ test("price and meta line are locale-aware", () => {
   assert.match(formatServicePrice(70000, "MXN", "es") ?? "", /700/);
   assert.equal(formatServicePrice(null, "MXN", "en"), null);
   const meta = serviceMetaLine(
-    { id: "a", title: "t", description: null, amountCents: 70000, currency: "MXN", durationMinutes: 120, bookable: true },
+    { id: "a", title: "t", description: null, amountCents: 70000, currency: "MXN", durationMinutes: 120, onRequest: false, bookable: true },
     "en",
   );
   assert.match(meta, /120 min/);
@@ -78,4 +79,53 @@ test("TUL-1812: each service card links to /book pinned to its own service", () 
   assert.equal(serviceBookHref("/book", "abc"), "/book?service=abc");
   assert.equal(serviceBookHref("/es/book?x=1", "a b"), "/es/book?x=1&service=a%20b");
   assert.equal(serviceBookHref("/book#top", "abc"), "/book?service=abc#top");
+});
+
+const base = { description: null, currency: "MXN", durationMinutes: 90, kind: "service" };
+
+test("D-10a: an on_request offering carries no amount and is flagged", () => {
+  const cards = mergeServiceCards(
+    [
+      { ...base, id: "p", title: "Public", amountCents: 120000, visibility: "public" },
+      { ...base, id: "r", title: "Retrato", amountCents: 120000, visibility: "on_request" },
+    ],
+    new Set(["p", "r"]),
+  );
+  assert.equal(cards[0].amountCents, 120000);
+  assert.equal(cards[0].onRequest, false);
+  assert.equal(cards[1].amountCents, null);
+  assert.equal(cards[1].onRequest, true);
+});
+
+test("D-10a: agency_only offerings never reach the public services band", () => {
+  const cards = mergeServiceCards(
+    [{ ...base, id: "a", title: "Privado", amountCents: 5000, visibility: "agency_only" }],
+    new Set(["a"]),
+  );
+  assert.deepEqual(cards, []);
+});
+
+test("D-10a: the services band prints no amount for on_request, only a request path", () => {
+  const services = mergeServiceCards(
+    [
+      { ...base, id: "p", title: "Corte", amountCents: 50000, visibility: "public" },
+      { ...base, id: "r", title: "Retrato de estudio", amountCents: 120000, visibility: "on_request" },
+    ],
+    new Set(["p", "r"]),
+  );
+  for (const locale of ["es", "en"]) {
+    const html = renderToStaticMarkup(
+      LiveServicesBand({
+        nodeId: "n",
+        surface: { tenantSlug: "t", agencyName: "A", services, offerings: [], signedIn: false, captcha: null },
+        locale,
+        bookHref: "/book",
+      }),
+    );
+    const [, request = ""] = html.split("Retrato de estudio");
+    assert.doesNotMatch(request, /1,?200|\$/);
+    assert.match(request, locale === "es" ? /Bajo consulta/ : /On request/);
+    assert.match(request, locale === "es" ? /Consultar/ : /Ask/);
+    assert.match(html, /500/); // the public one still shows its price
+  }
 });

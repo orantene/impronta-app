@@ -24,8 +24,12 @@ export function formatServicePrice(
 
 export function serviceMetaLine(card: LiveServiceCard, locale: string | undefined): string {
   const parts: string[] = [];
-  const price = formatServicePrice(card.amountCents, card.currency, locale);
-  if (price) parts.push(price);
+  if (card.onRequest) {
+    parts.push(locale === "es" ? "Bajo consulta" : "On request");
+  } else {
+    const price = formatServicePrice(card.amountCents, card.currency, locale);
+    if (price) parts.push(price);
+  }
   if (card.durationMinutes) parts.push(`${card.durationMinutes} min`);
   return parts.join(" · ");
 }
@@ -84,7 +88,7 @@ export function LiveServicesBand({
               {s.description ? <p style={{ margin: 0 }}>{s.description}</p> : null}
               {s.bookable ? (
                 <a href={serviceBookHref(bookHref, s.id)} style={{ marginTop: 8, fontWeight: 600 }}>
-                  {t("public.bookPage.bookCta")}
+                  {s.onRequest ? (locale === "es" ? "Consultar" : "Ask") : t("public.bookPage.bookCta")}
                 </a>
               ) : null}
             </li>
