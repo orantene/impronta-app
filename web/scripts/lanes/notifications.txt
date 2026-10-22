@@ -43,6 +43,8 @@ src/lib/bookings/deposit-booking-amounts.static.test.ts
 src/lib/bookings/ledger-paid.test.ts
 src/lib/brand/email-palette.test.ts
 src/lib/brand/marketing-origin.test.ts
+src/lib/brand/public-root-domain.test.ts
+src/lib/brand/staging-host-literals.static.test.ts
 src/lib/client-account/save-bookings.test.ts
 src/lib/client-account/visit-id.test.ts
 src/lib/discover/channel-performance.test.ts

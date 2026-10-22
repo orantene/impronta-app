@@ -7,8 +7,14 @@
  */
 
 import { withHubLocale } from "@/lib/hub-link";
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 
 export const CANONICAL_PROFILE_ORIGIN = "https://tulala.digital";
+
+/** The canonical public origin for THIS deployment: production apex, or the staging root (TUL-1845). */
+export function canonicalProfileOrigin(): string {
+  return resolvePublicRootOrigin();
+}
 
 export function isLocalDevOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
@@ -29,7 +35,7 @@ export function isLocalDevOrigin(origin: string | null | undefined): boolean {
 
 /** Absolute href for her public page, on the current origin when it is local. */
 export function talentPublicProfileHref(profileCode: string, currentOrigin?: string | null): string {
-  const base = isLocalDevOrigin(currentOrigin) ? new URL(currentOrigin as string).origin : CANONICAL_PROFILE_ORIGIN;
+  const base = isLocalDevOrigin(currentOrigin) ? new URL(currentOrigin as string).origin : canonicalProfileOrigin();
   return `${base}/t/${encodeURIComponent(profileCode)}`;
 }
 
@@ -129,7 +135,7 @@ function normalizeDistinctPersonalSiteHref(
   // (subdomains off); elsewhere keep the canonical public host.
   const relativeBase = isLocalDevOrigin(currentOrigin)
     ? new URL(currentOrigin as string).origin
-    : CANONICAL_PROFILE_ORIGIN;
+    : canonicalProfileOrigin();
 
   let absolute: string;
   try {

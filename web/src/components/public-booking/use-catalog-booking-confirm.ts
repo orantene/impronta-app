@@ -107,7 +107,10 @@ export function useCatalogBookingConfirm(input: {
     });
     if (firstInvalid) {
       // TUL-841: a field below the fold must not fail silently.
-      focusBookingField(firstInvalid);
+      // If the field is not on screen (another step), say so instead of doing nothing.
+      if (!focusBookingField(firstInvalid)) {
+        input.setError(input.locale.toLowerCase().startsWith("es") ? "Revisa los datos marcados antes de confirmar." : "Check the highlighted details before confirming.");
+      }
       return;
     }
     if (input.captchaRequired && !input.captchaToken.trim()) {

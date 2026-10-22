@@ -184,7 +184,9 @@ export function BookableComposer({
       addressValid: addr.valid,
     });
     if (firstInvalid) {
-      focusBookingField(firstInvalid);
+      if (!focusBookingField(firstInvalid)) {
+        setError(pageLocale.toLowerCase().startsWith("es") ? "Revisa los datos marcados antes de confirmar." : "Check the highlighted details before confirming.");
+      }
       return;
     }
     setBusy(true);

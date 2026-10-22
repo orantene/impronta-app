@@ -66,6 +66,7 @@ export function GuestDockDetailsCard({ name, email, phone, token, accent, accent
         onChange={(e) => setValue(e.target.value)}
         disabled={busy || !token}
         autoComplete="name"
+        placeholder={t("public.guestChat.contactNamePlaceholder")}
         style={{
           width: "100%",
           boxSizing: "border-box",

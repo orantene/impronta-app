@@ -684,7 +684,7 @@ async function proxyInner(request: NextRequest) {
   // `/directory`; `/global-directory` is intentionally absent from the
   // marketing allow-list, so it is reachable only through this rewrite.
   let marketingDirectoryRewrite = false;
-  if (effectiveHostContext.kind === "marketing" && pathnameForAuth === "/directory") {
+  if ((effectiveHostContext.kind === "marketing" || effectiveHostContext.kind === "hub") && pathnameForAuth === "/directory") { // TUL-1866: hub too
     nextUrl.pathname = "/global-directory";
     pathnameForAuth = "/global-directory";
     marketingDirectoryRewrite = true;
