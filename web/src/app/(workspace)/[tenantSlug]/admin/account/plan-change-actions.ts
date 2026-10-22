@@ -27,10 +27,12 @@ export async function previewWorkspacePlanChange(
   tenantSlug: string,
   planKey: string,
   interval: string | null,
+  /** TUL-833: optional promo code; re-validated against the catalog on the server. */
+  promoCode?: string | null,
 ): Promise<PlanChangePreview> {
   const id = await ownTenantId(tenantSlug);
   if (typeof id !== "string") return { ok: false, error: id.error, code: "not_allowed" };
-  return previewPlanChangeFor("workspace", id, planKey, interval);
+  return previewPlanChangeFor("workspace", id, planKey, interval, promoCode);
 }
 
 export async function confirmWorkspacePlanChange(
@@ -38,10 +40,11 @@ export async function confirmWorkspacePlanChange(
   planKey: string,
   interval: string | null,
   prorationDate: number,
+  promoCode?: string | null,
 ): Promise<PlanChangeConfirm> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error, code: "not_allowed" };
   const id = await ownTenantId(tenantSlug);
   if (typeof id !== "string") return { ok: false, error: id.error, code: "not_allowed" };
-  return confirmPlanChangeFor("workspace", id, planKey, interval, prorationDate);
+  return confirmPlanChangeFor("workspace", id, planKey, interval, prorationDate, promoCode);
 }

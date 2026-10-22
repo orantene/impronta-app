@@ -11340,6 +11340,17 @@
         "switchMonthlyAt": "Cambiar a facturación mensual: {price} al mes, a partir del {date}. Hoy no se cobra nada.",
         "confirm": "Confirmar cambio",
         "cancel": "Ahora no",
+        "lines": {
+          "title": "Desglose del precio",
+          "credit": "Crédito por el tiempo no usado de tu plan actual",
+          "charge": "{plan}, resto de este período de facturación",
+          "discount": "Código promocional {code}",
+          "total": "Total a pagar hoy",
+          "renewal": "Próxima renovación"
+        },
+        "promo": {
+          "applied": "{code}: {label}"
+        },
         "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
       }
     },

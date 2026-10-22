@@ -11340,6 +11340,17 @@
         "switchMonthlyAt": "Switch to monthly billing: {price} per month, starting {date}. Nothing is charged today.",
         "confirm": "Confirm change",
         "cancel": "Not now",
+        "lines": {
+          "title": "Price breakdown",
+          "credit": "Credit for unused time on your current plan",
+          "charge": "{plan}, rest of this billing period",
+          "discount": "Promo code {code}",
+          "total": "Total due today",
+          "renewal": "Next renewal"
+        },
+        "promo": {
+          "applied": "{code}: {label}"
+        },
         "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."
       }
     },

@@ -20,6 +20,7 @@ import {
   computePromoPreview,
   discountAppliesToTier,
   PROMO_ERROR_MESSAGES,
+  promoErrorFromReason,
   type PromoErrorCode,
   type PromoPreview,
 } from "@/lib/billing/promo-preview";
@@ -42,8 +43,7 @@ export async function validatePromoCode(
 
   const validated = await validateDiscount(String(code ?? ""));
   if (!validated.ok) {
-    const expired = /expired|no longer|started|limit/i.test(validated.reason);
-    return fail(expired ? "expired" : "invalid");
+    return fail(promoErrorFromReason(validated.reason));
   }
   const d = validated.discount;
   if (!discountAppliesToSubject(d.appliesFamily, "talent")) return fail("not_applicable");

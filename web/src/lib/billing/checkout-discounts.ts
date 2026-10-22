@@ -162,7 +162,7 @@ export function withinPerCustomerLimit(
 }
 
 /** How many times this subject has already redeemed this discount. */
-async function countSubjectRedemptions(input: {
+export async function countSubjectRedemptions(input: {
   discountId: string;
   subjectType: AccountDiscountSubjectType;
   tenantId: string | null;

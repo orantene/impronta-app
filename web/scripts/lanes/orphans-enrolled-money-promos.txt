@@ -43,7 +43,9 @@ src/lib/billing/effective-talent-plan.test.ts
 src/lib/billing/effective-workspace-plan.test.ts
 src/lib/billing/fee-card-load.static.test.ts
 src/lib/billing/fee-config.static.test.ts
+src/lib/billing/period-date.test.ts
 src/lib/billing/plan-change-policy.test.ts
+src/lib/billing/plan-change-promo.test.ts
 src/lib/billing/plan-change.test.ts
 src/lib/billing/promo-input-wiring.static.test.ts
 src/lib/billing/promo-preview.test.ts

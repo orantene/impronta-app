@@ -336,6 +336,7 @@ export async function createTalentBillingPortalSession(opts: {
       customerId: customer.stripe_customer_id,
       returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
       locale: opts.locale,
+      audience: "talent",
     });
     let session;
     try {
