@@ -9,6 +9,7 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
+import { hubLandingCopy } from "./hub-landing-copy";
 import { rehomeToPublicRoot } from "@/lib/brand/public-root-domain";
 import { canonicalTalentUrl, isDevOnlyHostname } from "@/lib/saas/canonical-hosts";
 import { hubMayListTalent, mapTenantDiscoverExposure } from "@/lib/saas/discover-exposure";
@@ -41,11 +42,10 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
     loadHubApprovedTalent(tenantId),
   ]);
 
+  const copy = hubLandingCopy(locale);
   const kicker = identity?.public_name ?? "Tulala";
-  const tagline =
-    identity?.tagline ??
-    "Each agency runs its own storefront at its own domain. Visit one to browse its talent roster and open an inquiry.";
-  const heroTitle = cmsHomepage?.title ?? "Agencies on the platform";
+  const tagline = identity?.tagline ?? copy.tagline;
+  const heroTitle = cmsHomepage?.title ?? copy.heroTitle;
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
@@ -75,13 +75,13 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
 
         {agencies.length === 0 ? (
           <p className="mt-12 text-sm text-[var(--impronta-muted)]">
-            No active agency domains yet.
+            {copy.noAgencies}
           </p>
         ) : (
-          <HubAgencyList agencies={agencies} />
+          <HubAgencyList agencies={agencies} copy={{ search: copy.searchAgencies, noMatches: copy.noMatches }} />
         )}
 
-        <HubTalentDirectory talent={hubTalent} />
+        <HubTalentDirectory talent={hubTalent} title={copy.featuredOnHub} />
       </main>
     </div>
   );
@@ -97,12 +97,12 @@ type HubTalentCard = {
   canonicalUrl: string | null;
 };
 
-async function HubTalentDirectory({ talent }: { talent: HubTalentCard[] }) {
+async function HubTalentDirectory({ talent, title }: { talent: HubTalentCard[]; title: string }) {
   if (talent.length === 0) return null;
   return (
     <section className="mt-16">
       <h2 className="font-display text-sm font-medium uppercase tracking-[0.3em] text-[var(--impronta-gold-dim)]">
-        Featured on the hub
+        {title}
       </h2>
       <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {talent.map((t) => {

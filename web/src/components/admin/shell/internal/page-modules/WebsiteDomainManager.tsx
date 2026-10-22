@@ -39,6 +39,8 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { useT } from "@/i18n/use-t";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { translateDomainActionText } from "@/components/admin/shell/internal/dashboard-i18n-domain-errors";
 import { interpolate } from "@/i18n/interpolate";
 import {
   connectCustomDomainAction,
@@ -322,6 +324,7 @@ function DomainRow({
 
 export function WebsiteDomainManager() {
   const t = useT();
+  const copy = useDashboardText();
   const { effectiveWebsiteState, bridgeSessionIdentity, tenantSlug, toast, openUpgrade } =
     useAdminShell();
   const domain = effectiveWebsiteState.domain;
@@ -337,9 +340,10 @@ export function WebsiteDomainManager() {
     const params = new URLSearchParams(window.location.search);
     const ok = params.get("dmsg");
     const err = params.get("derr");
-    if (ok) setBanner({ kind: "ok", text: ok });
-    else if (err) setBanner({ kind: "error", text: err });
-  }, []);
+    // The actions put English text in the query; map it to the dashboard language.
+    if (ok) setBanner({ kind: "ok", text: translateDomainActionText(ok, copy.t) });
+    else if (err) setBanner({ kind: "error", text: translateDomainActionText(err, copy.t) });
+  }, [copy.t]);
 
   const copyValue = (value: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
