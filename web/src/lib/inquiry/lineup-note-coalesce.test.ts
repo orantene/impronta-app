@@ -314,11 +314,15 @@ describe("pickNewestLineupNote (repair path, W0-E follow-up)", () => {
 });
 
 it("TUL-1238: the stored English lineup note is localised at render, other bodies pass through", () => {
-  const t = (k: string) => (k.endsWith("systemLineupCount") ? "Seleccion · {count} talentos" : "Que la agencia recomiende");
+  const t = (k: string) =>
+    k.endsWith("systemLineupCountOne")
+      ? "Seleccion · {count} talento"
+      : k.endsWith("systemLineupCount")
+        ? "Seleccion · {count} talentos"
+        : "Que la agencia recomiende";
   assert.equal(localizeLineupNoteBody("Lineup · 2 talent", t), "Seleccion · 2 talentos");
-  const t1 = (k: string) => (k.endsWith("systemLineupCountOne") ? "Seleccion · {count} talento" : "Seleccion · {count} talentos");
-  assert.equal(localizeLineupNoteBody("Lineup · 1 talent", t1), "Seleccion · 1 talento");
-  assert.equal(localizeLineupNoteBody("Lineup · 3 talent", t1), "Seleccion · 3 talentos");
+  assert.equal(localizeLineupNoteBody("Lineup · 1 talent", t), "Seleccion · 1 talento"); // TUL-1901
+  assert.equal(localizeLineupNoteBody("Lineup · 3 talent", t), "Seleccion · 3 talentos");
   assert.equal(localizeLineupNoteBody("Let the agency recommend", t), "Que la agencia recomiende");
   assert.equal(localizeLineupNoteBody("Budget: USD 6,000", t), "Budget: USD 6,000");
 });

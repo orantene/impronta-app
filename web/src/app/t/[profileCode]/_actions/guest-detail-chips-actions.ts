@@ -523,7 +523,7 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
       // with data already written. Repair the note to the current count
       // (update-only; no-ops when the body already matches).
       if (input.kind === "talent") {
-        const body = buildLineupNoteBody(newTalentIds.length, newTalentMode);
+        const body = buildLineupNoteBody(new Set(newTalentIds).size, newTalentMode);
         await repairLineupNoteBody(admin, inquiry.tenantId, inquiry.id, "group", body);
         await repairLineupNoteBody(admin, inquiry.tenantId, inquiry.id, "private", body);
       }
@@ -555,7 +555,7 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
         // 3-6 identical "Added N talent…" bubbles. Collapse a run into ONE
         // updating line (writeCoalescedLineupNote); the canonical body
         // "Lineup · N talent" also fixes the old double-prefix.
-        const noteBody = buildLineupNoteBody(newTalentIds.length, newTalentMode);
+        const noteBody = buildLineupNoteBody(new Set(newTalentIds).size, newTalentMode);
         await writeCoalescedLineupNote(admin, inquiry.tenantId, inquiry.id, "group", noteBody);
         await writeCoalescedLineupNote(admin, inquiry.tenantId, inquiry.id, "private", noteBody);
       } else {

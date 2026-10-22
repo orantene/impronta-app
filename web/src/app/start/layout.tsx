@@ -1,3 +1,5 @@
+import { OnboardingFooter } from "@/components/onboarding/onboarding-footer";
+
 /**
  * Scope for /start (Onboarding 1B front door).
  *
@@ -12,12 +14,14 @@ export default function StartLayout({ children }: { children: React.ReactNode })
   // One main landmark for the whole route (the page and its loading skeleton), so axe finds
   // the content inside a landmark (TUL-1126). The root layout renders no main above it.
   return (
-    <main
+    <div
       className="site-theme-platform flex min-h-full flex-1 flex-col"
       data-platform-surface="marketing"
       style={{ background: "var(--tl-bone)", color: "var(--tl-ink)" }}
     >
-      {children}
-    </main>
+      <main className="flex flex-1 flex-col">{children}</main>
+      {/* TUL-1910: /onboarding/role redirects here, so this is the page QA saw without a footer. */}
+      <OnboardingFooter />
+    </div>
   );
 }
