@@ -105,7 +105,7 @@ export function narrowAllowList(allowed, only) {
  * Refuse a write plan that could touch anything outside the contract. `changes` are the planned
  * updates (see planRow). `forbiddenIds` are the staging ids of the forbidden talents (resolved read-only).
  */
-export function checkWritePlan(changes, { allowed, forbiddenIds = [] }) {
+export function checkWritePlan(changes, { allowed, forbiddenIds = /** @type {string[]} */ ([]) }) {
   const problems = [];
   const banned = new Set(forbiddenIds.map((s) => String(s).toLowerCase()));
   for (const c of changes) {

@@ -699,6 +699,8 @@ export async function publishMaxSiteAction(opts?: { contentHash?: string | null 
   // production-only (see pingIndexNowUrl) and NOT awaited on the request path
   // — a slow api.indexnow.org must never hang this Publish click. A demo
   // profile has no real content, so it has nothing to ping.
+  // supabase-read-unchecked-ok: best-effort IndexNow ping; a failed read only
+  // means we skip the ping, never block Publish.
   const { data: demoCheck } = await sb
     .from("talent_profiles")
     .select("is_demo")

@@ -41,6 +41,7 @@ export const APP_ROOT_SEGMENTS = [
   "events",
   "fonts",
   "forgot-password",
+  "indexnow-key.txt",
   "invite",
   "join",
   "link",
