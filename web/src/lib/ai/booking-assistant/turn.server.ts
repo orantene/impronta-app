@@ -24,6 +24,7 @@ import { catalogTenantForPublicHost } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
+  bookingAssistantEmptyCatalogCopy,
   bookingAssistantFollowUpAckCopy,
   bookingAssistantHandoffCopy,
   replyLanguageDirective,
@@ -548,13 +549,19 @@ export async function maybeRunBookingAssistantTurn(
     );
     const grounding = catalogGrounding(offerings);
     if (offerings.length === 0) {
-      // Not a failure: the model is told the catalog is empty and says so. Named
-      // here because "no factual answer" on an empty catalog looks like a bug.
+      // Data gap, not a failure: say so plainly instead of the canned handoff.
       logBookingAssistant("booking_assistant_run", {
         ...base,
         action: "llm_facts",
         decision_reason: "empty_catalog",
         catalog_tenant_scoped: catalogTenantId !== null,
+      });
+      return insertSystemEvent({
+        inquiryId: args.inquiryId,
+        tenantId: args.tenantId,
+        body: bookingAssistantEmptyCatalogCopy(locale),
+        systemEventType: "booking_assistant_reply",
+        locale,
       });
     }
     const adapter = adapterForProvider("anthropic", anthropicKey);

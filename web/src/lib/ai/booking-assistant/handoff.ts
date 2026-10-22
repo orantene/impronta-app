@@ -98,6 +98,19 @@ export function bookingAssistantFollowUpAckCopy(locale: BookingAssistantLocale):
   return FOLLOW_UP_ACK[locale];
 }
 
+/**
+ * Empty public catalog: a plain, helpful reply (not the canned handoff). No model
+ * call is spent, and nothing is invented about prices, hours or services.
+ */
+const EMPTY_CATALOG: Record<BookingAssistantLocale, string> = {
+  en: "I do not have services, prices or hours published here yet. Leave your question in this chat and the team will answer it.",
+  es: "Todavía no tengo servicios, precios ni horarios publicados aquí. Deja tu pregunta en este chat y el equipo te responde.",
+};
+
+export function bookingAssistantEmptyCatalogCopy(locale: BookingAssistantLocale): string {
+  return EMPTY_CATALOG[locale];
+}
+
 export type BookingHandoffReason = "unsure" | "human_requested" | "turn_ceiling" | "gated" | "off";
 
 export function bookingAssistantHandoffCopy(

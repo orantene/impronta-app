@@ -39,3 +39,15 @@ test("turn wiring: every fallback path logs a reason and a handed-off thread get
   assert.ok(src.includes("booking_assistant_fallback"));
   assert.ok(src.includes('postAck("already_handed_off")'));
 });
+
+test("empty catalog copy is helpful, accented, differs from the handoff", async () => {
+  const { bookingAssistantEmptyCatalogCopy } = await import("./handoff");
+  for (const l of ["en", "es"] as const) {
+    const t = bookingAssistantEmptyCatalogCopy(l);
+    assert.notEqual(t, bookingAssistantHandoffCopy("unsure", l));
+    assert.equal(t.includes("—"), false);
+  }
+  assert.ok(bookingAssistantEmptyCatalogCopy("es").includes("aquí"));
+  const { readFileSync } = await import("node:fs");
+  assert.ok(readFileSync(new URL("./turn.server.ts", import.meta.url), "utf8").includes("bookingAssistantEmptyCatalogCopy(locale)"));
+});
