@@ -65,6 +65,8 @@
         "saveError": "Impossible d'enregistrer votre avis. Veuillez réessayer.",
         "savedTitle": "Merci d'avoir évalué {name}.",
         "savedBody": "Votre avis de {rating} étoiles est maintenant publié.",
+        "updatedTitle": "Avis mis à jour.",
+        "updatedBody": "Votre avis de {rating} étoiles a été mis à jour et est publié.",
         "done": "Terminé",
         "yourReview": "Votre avis",
         "closeReview": "Fermer l'avis",

@@ -316,6 +316,7 @@ src/lib/reservations/deposit-currency.test.ts
 src/lib/reservations/reserve-table-deposit.test.ts
 src/lib/resources/session-resource-holds.test.ts
 src/lib/reviews/collective-reviews.test.ts
+src/lib/reviews/leave-review-updated-confirmation.static.test.ts
 src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
 src/lib/reviews/resolve-review-tenant.test.ts

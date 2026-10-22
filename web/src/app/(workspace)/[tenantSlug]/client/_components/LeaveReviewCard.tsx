@@ -148,7 +148,7 @@ export function LeaveReviewCard({
   const [privateNote, setPrivateNote] = useState<string>(existing?.privateNote ?? "");
   const [anon, setAnon] = useState<boolean>(existing?.anon ?? false);
   const [state, setState] = useState<SaveState>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); const [savedWasEdit, setSavedWasEdit] = useState(false);
 
   const isEdit = existing != null;
   const groupId = useId();
@@ -207,7 +207,7 @@ export function LeaveReviewCard({
       standing,
     );
     if (res.ok) {
-      setState("saved");
+      setSavedWasEdit(existing != null); setState("saved");
       onSaved?.({
         rating,
         body: trimmed.length > 0 ? trimmed : null,
@@ -239,6 +239,7 @@ export function LeaveReviewCard({
   if (state === "saved") {
     return (
       <div
+        role="status"
         style={{
           background: C.greenSoft,
           border: `1px solid rgba(26,115,72,0.20)`,
@@ -268,10 +269,10 @@ export function LeaveReviewCard({
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: C.greenDeep, letterSpacing: -0.1 }}>
-              {tt("public.reviews.form.savedTitle", { name: talentLabel })}
+              {savedWasEdit ? tt("public.reviews.form.updatedTitle") : tt("public.reviews.form.savedTitle", { name: talentLabel })}
             </div>
             <div style={{ fontSize: 12, color: "rgba(26,115,72,0.75)", marginTop: 2 }}>
-              {tt("public.reviews.form.savedBody", { rating })}
+              {tt(savedWasEdit ? "public.reviews.form.updatedBody" : "public.reviews.form.savedBody", { rating })}
             </div>
           </div>
           {onClose && (
