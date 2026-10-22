@@ -77,7 +77,7 @@ describe("wiring", () => {
     assert.doesNotMatch(body, /return true; \/\/ fail open/);
   });
   test("the held migration defines the yes/no function for the anon edge client and reveals nothing else", () => {
-    const file = path.join(WEB, "../supabase/migrations/_pending_pm/20261231422800_talent_left_workspace_tul1591.sql");
+    const file = path.join(WEB, "../supabase/migrations/20261231431500_talent_left_workspace_tul1591.sql");
     assert.ok(existsSync(file), "held migration present");
     const sql = readFileSync(file, "utf8");
     assert.match(sql, /CREATE OR REPLACE FUNCTION public\.talent_left_workspace\(p_tenant_id uuid, p_profile_code text\)/);
@@ -99,7 +99,7 @@ describe("wiring", () => {
 // removal that was already public. Each condition below must be ANDed into the removed-row
 // branch; dropping any one of them fails its own case. Anything else is false = the 404 stays.
 describe("talent_left_workspace says yes only for a PUBLIC removal (no enumeration)", () => {
-  const file = path.join(WEB, "../supabase/migrations/_pending_pm/20261231422800_talent_left_workspace_tul1591.sql");
+  const file = path.join(WEB, "../supabase/migrations/20261231431500_talent_left_workspace_tul1591.sql");
   const sql = readFileSync(file, "utf8");
   const body = sql.slice(sql.indexOf("AS $$"), sql.indexOf("$$;"));
   // the removed-row branch: from its EXISTS to the NOT EXISTS that follows

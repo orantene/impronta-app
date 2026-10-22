@@ -3,7 +3,7 @@
  * and its calendar in one transaction, with self-exclusion.
  *
  * The fake below models `reschedule_inquiry_booking_with_resources`
- * (supabase/migrations/_pending_pm/20261231422200_...): calls are serialized (the real
+ * (supabase/migrations/20261231431200_...): calls are serialized (the real
  * function locks the pool chain FOR UPDATE), each moving allocation is re-counted for the
  * new window EXCLUDING itself, and a refused calendar write restores everything (the
  * real function raises and the block rolls back). The SQL text itself is pinned by

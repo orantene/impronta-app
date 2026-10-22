@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { INQUIRY_RESCHEDULE_RPC } from "./reschedule-booking";
 
 const web = join(__dirname, "..", "..", "..");
-const MIGRATION = join(web, "..", "supabase", "migrations", "_pending_pm", "20261231422200_reschedule_inquiry_booking_resources_tul1480.sql");
+const MIGRATION = join(web, "..", "supabase", "migrations", "20261231431200_reschedule_inquiry_booking_resources_tul1480.sql");
 const sql = readFileSync(MIGRATION, "utf8");
 const body = sql.slice(sql.indexOf("AS $$"), sql.lastIndexOf("$$;"));
 const app = readFileSync(join(web, "src", "lib", "scheduling", "reschedule-booking.ts"), "utf8");
@@ -74,8 +74,8 @@ test("one transaction: the calendar runs inside, and a refusal rolls the resourc
   assert.match(body, /operation_key = p_resources_key/);
 });
 
-test("held migration, not a live one", () => {
-  assert.ok(MIGRATION.includes("_pending_pm"));
+test("promoted to the live migrations folder (no longer held)", () => {
+  assert.ok(!MIGRATION.includes("_pending_pm"));
   assert.match(sql, /^BEGIN;$/m);
   assert.match(sql, /^COMMIT;$/m);
 });

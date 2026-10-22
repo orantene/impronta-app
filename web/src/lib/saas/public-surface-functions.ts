@@ -65,7 +65,7 @@ export const PUBLIC_SURFACE_FUNCTIONS: readonly string[] = [
   // TUL-1591 (a): the edge leaver redirect (host-context.ts `isFormerRosterMemberCode`) asks,
   // with the ANON key, whether a /t/<code> on a workspace host is a former member. Read-only
   // STABLE SECURITY DEFINER; returns a boolean only (no row, id or date). Held migration
-  // 20261231422800_talent_left_workspace_tul1591.sql.
+  // 20261231431500_talent_left_workspace_tul1591.sql.
   "talent_left_workspace",
 ];
 
