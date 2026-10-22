@@ -13,7 +13,7 @@ import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { loadOfferingDestinations, type OfferingDestination } from "@/lib/talent/services-settings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import { isServiceShareable, serviceShareUrl } from "@/lib/talent/service-share-link";
+import { isServiceShareable, serviceHiddenAsTest, serviceShareUrl } from "@/lib/talent/service-share-link";
 
 const COPY = {
   en: {
@@ -24,6 +24,7 @@ const COPY = {
     qr: "Scan to open this service",
     loading: "Getting your link…",
     none: "Publish your profile first to get a link.",
+    hiddenTest: "This service is hidden on the public site because its name marks it as a test (QA/E2E). Rename it to share it.",
     notPublic: "This service is not public yet. Publish it to get a link people can open.",
     close: "Close",
   },
@@ -35,6 +36,7 @@ const COPY = {
     qr: "Escanea para abrir este servicio",
     loading: "Obteniendo tu enlace…",
     none: "Publica tu perfil primero para tener un enlace.",
+    hiddenTest: "Este servicio está oculto en el sitio público porque su nombre lo marca como prueba (QA/E2E). Cámbiale el nombre para compartirlo.",
     notPublic: "Este servicio aún no es público. Publícalo para obtener un enlace que se pueda abrir.",
     close: "Cerrar",
   },
@@ -52,12 +54,15 @@ export function ServiceShareSheet({
   const copy = useDashboardText();
   const t = copy.isSpanish ? COPY.es : COPY.en;
   const [destinations, setDestinations] = useState<OfferingDestination[] | null>(null);
+  const [hidesTest, setHidesTest] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let live = true;
     void loadOfferingDestinations(talentId).then((res) => {
-      if (live) setDestinations(res.ok ? res.destinations : []);
+      if (!live) return;
+      setDestinations(res.ok ? res.destinations : []);
+      setHidesTest(res.ok && res.publicSiteHidesTestServices);
     });
     return () => {
       live = false;
@@ -66,14 +71,14 @@ export function ServiceShareSheet({
 
   const target = useMemo(
     () =>
-      destinations
+      destinations && !serviceHiddenAsTest(item, talentId, hidesTest)
         ? serviceShareUrl({
             offering: { id: item.id, title: item.title, kind: item.kind, visibility: item.visibility, status: item.status, moderationState: item.moderationState },
             destinations,
             origin: typeof window === "undefined" ? "" : window.location.origin,
           })
         : null,
-    [destinations, item.id, item.title, item.kind, item.visibility, item.status, item.moderationState],
+    [destinations, hidesTest, talentId, item, item.title, item.kind, item.visibility, item.status, item.moderationState],
   );
 
   const qrSvg = useMemo(() => {
@@ -105,7 +110,7 @@ export function ServiceShareSheet({
         {destinations === null ? (
           <p className="mt-4 text-[13px] text-admin-ink-dim">{t.loading}</p>
         ) : !target ? (
-          <p className="mt-4 text-[13px] text-admin-ink">{isServiceShareable(item) ? t.none : t.notPublic}</p>
+          <p className="mt-4 text-[13px] text-admin-ink">{serviceHiddenAsTest(item, talentId, hidesTest) ? t.hiddenTest : isServiceShareable(item) ? t.none : t.notPublic}</p>
         ) : (
           <>
             <p className="mt-4 break-all rounded-lg border border-admin-border-soft bg-black/[0.02] px-3 py-2 text-[13px] text-admin-ink" data-service-share-url>

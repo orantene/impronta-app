@@ -162,3 +162,31 @@ test("TUL-1270: the share sheet explains a non-public service in en and es", () 
   assert.match(sheet, /notPublic: "This service is not public yet/);
   assert.match(sheet, /notPublic: "Este servicio aún no es público/);
 });
+
+import { serviceHiddenAsTest } from "./service-share-link";
+import { hideTestServiceOnPublicSite, QA_FIXTURE_TENANT_IDS } from "./qa-test-service";
+
+test("TUL-1270: a QA-named service on a test/demo profile is flagged hidden, using the loader's own helper", () => {
+  const T = "11111111-1111-4111-8111-111111111111";
+  const qa = { title: "QA Limpieza de casa" };
+  assert.equal(serviceHiddenAsTest(qa, T, true), true);
+  assert.equal(serviceHiddenAsTest(qa, T, false), false, "a real talent keeps QA-named services");
+  assert.equal(serviceHiddenAsTest({ title: "Limpieza de casa" }, T, true), false);
+  assert.equal(serviceHiddenAsTest({ title: "x", titleI18n: { es: "Servicio E2E" } }, T, true), true);
+  const house = [...QA_FIXTURE_TENANT_IDS][0];
+  assert.equal(serviceHiddenAsTest({ ...qa, tenantId: house }, T, false), false, "talent-owned rows follow the profile flag");
+  // Agrees with the public loader's decision for the same row.
+  assert.equal(
+    serviceHiddenAsTest(qa, T, true),
+    hideTestServiceOnPublicSite({ ...qa, talent_profile_id: T }, { fixtureProfileIds: new Set([T]), fixtureTenantIds: QA_FIXTURE_TENANT_IDS }),
+  );
+});
+
+test("TUL-1270: the sheet shows the rename message (en + es) and the server passes the profile flag", () => {
+  const sheet = readFileSync(join(process.cwd(), "src/components/talent/services/ServiceShareSheet.tsx"), "utf8");
+  assert.match(sheet, /hiddenTest: "This service is hidden on the public site because its name marks it as a test \(QA\/E2E\)\. Rename it to share it\."/);
+  assert.match(sheet, /hiddenTest: "Este servicio está oculto en el sitio público porque su nombre lo marca como prueba \(QA\/E2E\)\. Cámbiale el nombre para compartirlo\."/);
+  assert.match(sheet, /serviceHiddenAsTest\(item, talentId, hidesTest\)/);
+  const act = readFileSync(join(process.cwd(), "src/lib/talent/services-settings-actions.ts"), "utf8");
+  assert.match(act, /publicSiteHidesTestServices: flags\.is_demo === true \|\| flags\.is_test_account === true/);
+});

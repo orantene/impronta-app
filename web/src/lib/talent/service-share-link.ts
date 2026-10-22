@@ -12,6 +12,7 @@
  * No signed token (the signed `?service=` intent expires in 30 minutes).
  */
 import { isServicePageEligible, isServicePubliclyServed, servicePageUrl } from "@/lib/talent-site/service-page";
+import { hideTestServiceOnPublicSite, QA_FIXTURE_TENANT_IDS } from "./qa-test-service";
 import { hubServiceHash } from "./service-share-hash";
 
 export { HUB_SERVICE_HASH_PREFIX, hubServiceHash, offeringId8, parseHubServiceHash } from "./service-share-hash";
@@ -37,6 +38,24 @@ export function isServiceShareable(o: ShareOffering): boolean {
     status: o.status,
     moderationState: o.moderationState,
   });
+}
+
+/**
+ * TUL-1270: true when the public loader would drop this service (QA/E2E-named on a demo or
+ * test-account profile, or a fixture-tenant house service). Same helper as the loader.
+ */
+export function serviceHiddenAsTest(
+  o: { title: string; titleI18n?: Record<string, string | null | undefined> | null; tenantId?: string | null },
+  talentProfileId: string,
+  publicSiteHidesTestServices: boolean,
+): boolean {
+  return hideTestServiceOnPublicSite(
+    { title: o.title, titleI18n: o.titleI18n, talent_profile_id: talentProfileId, tenant_id: o.tenantId ?? null },
+    {
+      fixtureProfileIds: new Set(publicSiteHidesTestServices ? [talentProfileId] : []),
+      fixtureTenantIds: QA_FIXTURE_TENANT_IDS,
+    },
+  );
 }
 
 type ShareOffering = {
