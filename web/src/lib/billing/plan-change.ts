@@ -42,6 +42,8 @@ export type PlanChangeRequest = {
   toInterval: BillingInterval;
   /** Catalog price for (toPlan, toInterval); null = not sold. */
   toPriceId: string | null;
+  /** Server-side error sink so a swallowed Stripe failure still leaves a log line naming the step. */
+  onError?: (context: string, err: unknown) => void;
 };
 
 type Current = {
@@ -142,7 +144,8 @@ export async function previewPlanChange(
       currency: invoice.currency,
       effectiveAt: isIntervalChange && trialEnd ? iso(trialEnd) : null,
     };
-  } catch {
+  } catch (err) {
+    req.onError?.(`billing.planChange.preview.stripe kind=${req.kind} toPlan=${req.toPlan} toInterval=${req.toInterval}`, err);
     return { ok: false, error: "We could not price this change. Try again.", code: "stripe" };
   }
 }
@@ -209,6 +212,7 @@ export async function confirmPlanChange(
     );
     return { ok: true, kind: policy.kind, timing: "period_end", effectiveAt: iso(c.item.current_period_end) };
   } catch (err) {
+    req.onError?.(`billing.planChange.confirm.stripe kind=${req.kind} toPlan=${req.toPlan} toInterval=${req.toInterval}`, err);
     return { ok: false, error: "We could not change your plan. Try again.", code: "stripe", definite: isDefiniteStripeFailure(err) };
   }
 }

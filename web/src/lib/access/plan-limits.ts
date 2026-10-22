@@ -88,7 +88,10 @@ export const PLAN_LIMITS: Record<PlanKey, Record<LimitKey, number | null>> = {
   studio: {
     max_team_seats: 3,
     max_active_talent: null,
-    max_custom_domains: null,
+    // Studio has no custom domain on purpose: the enforced gate is
+    // customDomainEligible() in lib/saas/workspace-public-url.ts (website,
+    // agency, network, legacy). 0 keeps this table from implying otherwise.
+    max_custom_domains: 0,
     max_locales: null,
     max_custom_fields: null,
   },

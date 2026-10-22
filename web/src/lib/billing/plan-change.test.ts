@@ -193,3 +193,33 @@ test("downgrade on an active (not trialing) plan sets no trial_end", async () =>
   const [, params] = find(calls, "schedules.update").args as [string, { phases: { trial_end?: number }[] }];
   assert.equal("trial_end" in params.phases[0], false);
 });
+
+test("a Stripe failure while pricing or confirming is logged with the step, not swallowed", async () => {
+  const boom = new Error("stripe down");
+  const stripe = {
+    subscriptions: {
+      retrieve: async () => {
+        throw boom;
+      },
+      update: async () => fakeSub(),
+    },
+  } as unknown as PlanChangeStripe;
+  const logged: Array<{ context: string; err: unknown }> = [];
+  const req: PlanChangeRequest = {
+    kind: "workspace",
+    subjectId: "t_1",
+    subscriptionId: "sub_1",
+    toPlan: "studio",
+    toInterval: "month",
+    toPriceId: "price_studio",
+    onError: (context, err) => logged.push({ context, err }),
+  };
+  const preview = await previewPlanChange(stripe, req);
+  assert.equal(preview.ok, false);
+  const confirmed = await confirmPlanChange(stripe, req, Math.floor(Date.now() / 1000));
+  assert.equal(confirmed.ok, false);
+  assert.equal(logged.length, 2);
+  assert.match(logged[0].context, /preview\.stripe .*toPlan=studio/);
+  assert.match(logged[1].context, /confirm\.stripe .*toPlan=studio/);
+  assert.equal(logged[0].err, boom);
+});

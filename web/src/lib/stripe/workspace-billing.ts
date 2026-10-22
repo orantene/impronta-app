@@ -209,7 +209,13 @@ export async function createWorkspaceCheckoutSession(opts: {
   }
 
   const price = await resolveCheckoutPrice((i) => resolveWorkspacePriceId(opts.planKey, i), opts.interval);
-  if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  if (!price.ok) {
+    logServerError(
+      "workspace-billing.checkout.price",
+      new Error(`plan=${opts.planKey} code=${price.code}: the catalog resolved no Stripe price id for this plan/interval`),
+    );
+    return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  }
   const priceId = price.priceId;
 
   // Get or create the Stripe customer

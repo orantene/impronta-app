@@ -168,7 +168,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
         body={stubBody(
           t,
           "domain",
-          "Subdomain config, custom domain (Agency), homepage assignment, blog index assignment.",
+          "Subdomain config, custom domain (Website, Agency, Network), homepage assignment, blog index assignment.",
         )}
         legacyHref="/admin/site/domain"
       />
