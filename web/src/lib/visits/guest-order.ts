@@ -85,7 +85,7 @@ export async function guestVisitMenu(
         // Sort BEFORE the cap, so the 200 that survive are the owner's first 200.
         .order("sort_order", { ascending: true }),
     ).limit(200);
-  // TUL-1916: the QR menu lists only items switched on for it. Before the column
+  // TUL-1916: the QR menu hides items switched off for it. Before the column
   // exists the read falls back to the old columns and everything stays listed.
   const [first, nonMenu] = await Promise.all([readMenu(`${MENU_COLUMNS}, ${TABLE_QR_COLUMN}`), loadNonMenuOfferingIds(admin, input.tenantId)]);
   const { data, error } = first.error && isMissingColumnError(first.error) ? await readMenu(MENU_COLUMNS) : first;
@@ -202,7 +202,7 @@ export async function guestVisitAddLine(
   const off = offering as unknown as { id: string; status: string; moderation_state?: string; visibility?: string; table_qr_enabled?: boolean | null } | null;
   // D-10: an id guessed from another surface must not add an unapproved or hidden service.
   if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
-  // TUL-1916: an item not switched on for the table QR cannot be added by a guessed id.
+  // TUL-1916: an item switched off for the table QR cannot be added by a guessed id.
   if (!isOnTableQrMenu(off)) return { ok: false, reason: "item_unavailable" };
   // TUL-1271 item 6: an event-backing or reservation id is not a menu item either (fails closed).
   if (await anyNonMenuOffering(admin, input.tenantId, [off.id])) return { ok: false, reason: "item_unavailable" };

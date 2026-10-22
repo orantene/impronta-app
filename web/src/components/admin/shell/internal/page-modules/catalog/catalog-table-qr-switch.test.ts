@@ -27,11 +27,12 @@ test("before the column exists the switch writes nothing", () => {
   assert.equal(tableQrColumnPresent([item(), item({ tableQrEnabled: false })]), true);
 });
 
-test("reads as on only when published and switched on", () => {
+test("reads as on when published and not switched off", () => {
   assert.equal(isTableQrOn(item({ status: "published", tableQrEnabled: true })), true);
   assert.equal(isTableQrOn(item({ status: "published", tableQrEnabled: false })), false);
   assert.equal(isTableQrOn(item({ status: "draft", tableQrEnabled: true })), false);
-  assert.equal(isTableQrOn(item({ status: "published" })), false);
+  // A missing flag (column not applied) is on, the same as the reader.
+  assert.equal(isTableQrOn(item({ status: "published" })), true);
 });
 
 test("row mapping round-trips table_qr_enabled and omits it when the row lacks it", () => {

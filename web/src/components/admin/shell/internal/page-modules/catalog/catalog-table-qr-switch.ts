@@ -22,7 +22,7 @@ export function tableQrSwitchPatch(
   return {};
 }
 
-/** On the table-QR menu: published AND switched on. */
+/** On the table-QR menu: published and not switched off (a missing flag means on, as the reader treats it). */
 export function isTableQrOn(item: Pick<TalentOffering, "status" | "tableQrEnabled">): boolean {
-  return item.status === "published" && item.tableQrEnabled === true;
+  return item.status === "published" && item.tableQrEnabled !== false;
 }

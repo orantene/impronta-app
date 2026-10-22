@@ -32,12 +32,12 @@ test("guest menu and guest add-line both apply the flag, and fall back when the 
   assert.equal((code.match(/isMissingColumnError\(/g) ?? []).length, 2);
 });
 
-test("the migration is additive, defaults to false, has no data update and a rollback", () => {
+test("the migration is additive, defaults to true (nothing leaves the menu), has no data update and a rollback", () => {
   const dir = new URL("../../../../supabase/migrations/", import.meta.url);
   const file = readdirSync(dir).find((f) => /talent_offerings_table_qr_enabled/.test(f));
   assert.ok(file, "migration missing");
   const sql = readFileSync(new URL(file!, dir), "utf8");
-  assert.match(sql, /ADD COLUMN IF NOT EXISTS table_qr_enabled boolean NOT NULL DEFAULT false/);
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS table_qr_enabled boolean NOT NULL DEFAULT true/);
   assert.match(sql, /ROLLBACK/);
   assert.match(sql, /DROP COLUMN IF EXISTS table_qr_enabled/);
   assert.doesNotMatch(sql.replace(/^--.*$/gm, ""), /\b(UPDATE|INSERT|DELETE)\b/i);
