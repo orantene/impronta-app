@@ -83,7 +83,8 @@ export function RowMenu({
     <div className="absolute right-0 top-10 z-20 w-52 rounded-xl border border-admin-border-soft bg-white py-1 shadow-admin-rest">
       <MenuBtn onClick={() => { onEdit(); onClose(); }}>{copy.t("Edit")}</MenuBtn>
       <MenuBtn onClick={() => { onPreview(); onClose(); }}>{copy.t("Preview as customer")}</MenuBtn>
-      {word === "live" && <MenuBtn onClick={() => { onShare(); onClose(); }}>{copy.t("Share")}</MenuBtn>}
+      {/* TUL-1270: every state shows Share; the sheet says "not public yet" for a draft instead of the action vanishing. */}
+      <MenuBtn onClick={() => { onShare(); onClose(); }}>{copy.t("Share")}</MenuBtn>
       <MenuBtn onClick={() => { onDuplicate(); onClose(); }}>{copy.t("Duplicate")}</MenuBtn>
       {word === "live" && <MenuBtn onClick={() => { onHide(); onClose(); }}>{copy.t("Hide")}</MenuBtn>}
       {word === "hidden" && <MenuBtn onClick={() => { onShow(); onClose(); }}>{copy.t("Show again")}</MenuBtn>}
