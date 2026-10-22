@@ -9,6 +9,7 @@ import {
   WORKSPACE_HOST_KIND_HEADER,
   explicitUrlLocale,
   resolveWorkspacePageLocale,
+  workspaceLocaleBranchApplies,
 } from "@/i18n/workspace-page-locale";
 
 const LOCALE_HEADER = "x-impronta-locale";
@@ -53,7 +54,17 @@ export async function getRequestLocale(): Promise<Locale> {
   // TUL-699: workspace public pages speak the workspace's language unless the
   // URL asks for one explicitly. Never touches talent sites or marketing.
   const tenantId = h.get("x-impronta-tenant-id");
-  if (tenantId && h.get(WORKSPACE_HOST_KIND_HEADER) === "agency") {
+  const jar = await cookies();
+  if (
+    tenantId &&
+    h.get(WORKSPACE_HOST_KIND_HEADER) === "agency" &&
+    // TUL-1229: a dashboard follows the user's own language cookie, not the workspace default.
+    workspaceLocaleBranchApplies({
+      pathname: h.get(ORIGINAL_PATHNAME_HEADER),
+      cookieLocale: jar.get(LOCALE_COOKIE)?.value,
+      publicLocales: settings.publicLocales,
+    })
+  ) {
     const forWorkspace = resolveWorkspacePageLocale({
       hostKind: "agency",
       explicit: explicitUrlLocale(
@@ -72,7 +83,6 @@ export async function getRequestLocale(): Promise<Locale> {
       return forWorkspace as Locale;
     }
   }
-  const jar = await cookies();
   return resolveRequestLocale({
     headerLocale: h.get(LOCALE_HEADER),
     pathname: h.get(ORIGINAL_PATHNAME_HEADER),

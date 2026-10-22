@@ -58,3 +58,25 @@ test("an unsupported own language falls back to the platform default", () => {
     "en",
   );
 });
+
+import { isDashboardSurfacePath, workspaceLocaleBranchApplies } from "./workspace-page-locale";
+
+test("TUL-1229: dashboard surfaces are recognised, public workspace pages are not", () => {
+  for (const p of ["/talent", "/talent/today", "/admin/inquiries", "/client", "/account", "/acme/admin", "/acme/client/today", "/es/talent/today"]) {
+    assert.equal(isDashboardSurfacePath(p), true, p);
+  }
+  for (const p of ["/", "/directory", "/w/acme", "/w/acme/client", "/es", "/t/abc", null, undefined]) {
+    assert.equal(isDashboardSurfacePath(p as string | null | undefined), false, String(p));
+  }
+});
+
+test("TUL-1229: a dashboard follows the language cookie over the workspace default", () => {
+  assert.equal(workspaceLocaleBranchApplies({ pathname: "/talent/today", cookieLocale: "en", publicLocales: pub }), false);
+  assert.equal(workspaceLocaleBranchApplies({ pathname: "/talent/today", cookieLocale: "es", publicLocales: pub }), false);
+});
+
+test("TUL-1229: dashboard with no usable cookie falls back to the workspace language; public pages unchanged", () => {
+  assert.equal(workspaceLocaleBranchApplies({ pathname: "/talent/today", cookieLocale: undefined, publicLocales: pub }), true);
+  assert.equal(workspaceLocaleBranchApplies({ pathname: "/talent/today", cookieLocale: "fr", publicLocales: pub }), true);
+  assert.equal(workspaceLocaleBranchApplies({ pathname: "/w/acme", cookieLocale: "en", publicLocales: pub }), true);
+});
