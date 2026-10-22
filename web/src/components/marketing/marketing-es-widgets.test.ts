@@ -51,7 +51,7 @@ test("the /pricing compare table has no hard-coded English chrome and names ever
   assert.doesNotMatch(view, /aria-label="(Not included|Included)"/);
   assert.doesNotMatch(view, /<code>\/platform\/admin/, "the public empty state must not point visitors at admin");
   assert.match(view, /\{copy\.unavailable\}/);
-  assert.match(view, /localizeTierName\(/);
+  assert.match(view, /pricingTierName\(/);
   const types = read("src/lib/pricing/pricing-types.ts");
   const order = types.match(/COMPARE_CATEGORY_ORDER[^=]*=\s*\[([\s\S]*?)\]/)?.[1] ?? "";
   const esBlock = view.slice(view.indexOf("const COPY_ES"));

@@ -18,6 +18,8 @@ export async function resolveTenantPublicOriginForIndexNow(
   sb: SupabaseClient,
   tenantId: string,
 ): Promise<string | null> {
+  // supabase-read-unchecked-ok: best-effort IndexNow ping; a failed read is
+  // the same as "no live domain" (null, nothing to ping).
   const { data } = await sb
     .from("agency_domains")
     .select("hostname, kind, status, is_primary")

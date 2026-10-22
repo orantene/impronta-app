@@ -81,6 +81,8 @@ export async function resolveTalentProfileLocaleByCode(
   try {
     const pub = createPublicSupabaseClient();
     if (!pub) return null;
+    // supabase-read-unchecked-ok: never-throws resolver; a failed read yields
+    // null, which callers already treat as "no locale override".
     const { data } = await pub
       .from("talent_profiles")
       .select("id")
