@@ -88,3 +88,10 @@ test("billing dates print the UTC calendar day in the viewer's language, on the 
   assert.match(g, /formatPeriodDate\(effectiveAt, locale\)/);
   assert.doesNotMatch(g, /toLocaleDateString\(\)/);
 });
+
+test("TUL-1919: the agenda NOW block label goes through the agenda copy, with an es catalog entry", () => {
+  const box = web("src/components/admin/shell/internal/talent/agenda/primitives/NowBox.tsx");
+  assert.match(box, /copy\.t\("Now"\)/);
+  assert.doesNotMatch(box, />\s*Now\s*</);
+  assert.match(web("src/lib/talent-agenda/agenda-i18n.ts"), /Now: "Ahora"/);
+});
