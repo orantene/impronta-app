@@ -11,6 +11,7 @@ src/app/(workspace)/?tenantSlug?/admin/pos/floor-client.render.test.tsx
 src/app/(workspace)/?tenantSlug?/admin/pos/pos-client.render.test.tsx
 src/app/(workspace)/?tenantSlug?/admin/pos/pos-mode-url-sync.render.test.tsx
 src/app/(workspace)/?tenantSlug?/client/_actions/offer-refusal.test.ts
+src/components/admin/floor/floor-booking-actions.test.ts
 src/components/admin/pos/classes-copy.static.test.ts
 src/components/admin/service-hub/owner-hub-screen.render.test.tsx
 src/components/storefront/public-hub-entries.render.test.tsx
@@ -417,5 +418,6 @@ src/lib/visits/commands.test.ts
 src/lib/visits/floor.test.ts
 src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
+src/lib/visits/reservation-ops.test.ts
 src/lib/visits/restaurant-screens.render.test.ts
 src/lib/visits/seat-reservation.test.ts
