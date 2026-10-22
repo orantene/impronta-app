@@ -37,11 +37,12 @@ export function withOfferingStockNeeds(
   // One leg per LINE, not summed: `buildCapacityRequests` must still see each
   // line's own units so a part quantity is refused rather than added up into a
   // whole one. Two legs on one pool are fine; the batch takes them atomically.
-  for (const line of lines) {
+  for (const [lineIndex, line] of lines.entries()) {
     if (covered.has(line.offeringId)) continue;
     const poolId = stockPools.get(line.offeringId);
     if (!poolId) continue;
-    needs.push({ offeringId: line.offeringId, poolId, units: line.units, perUnitDomainRow: false });
+    // lineIndex (TUL-1314): this hold belongs to THIS line, not to "the line of that offering".
+    needs.push({ offeringId: line.offeringId, poolId, units: line.units, perUnitDomainRow: false, lineIndex });
   }
   return needs;
 }

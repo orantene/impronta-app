@@ -167,7 +167,9 @@ src/lib/orders/orders-list.test.ts
 src/lib/orders/orders-page-wire.static.test.ts
 src/lib/orders/purchase-attribution.test.ts
 src/lib/orders/purchase-catalog-groups.test.ts
+src/lib/orders/purchase-lines.test.ts
 src/lib/orders/purchase-pass-through-collect.test.ts
+src/lib/orders/purchase-phases.test.ts
 src/lib/orders/purchase-policy.test.ts
 src/lib/orders/purchase-pricing.test.ts
 src/lib/orders/purchase-refusal.test.ts

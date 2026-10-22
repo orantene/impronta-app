@@ -83,6 +83,7 @@ function fake(opts: {
         return q;
       },
       in: () => q,
+      lte: () => q,
       is: () => q,
       gt: () => q,
       order: () => q,

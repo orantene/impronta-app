@@ -118,7 +118,7 @@ function fakeAdmin(promos: Row[]) {
       select: () => q,
       insert: (payload: Row) => { selecting = false; inserts.push({ table, payload }); return q; },
       update: () => { selecting = false; return q; },
-      eq: () => q, in: () => q, is: () => q, gt: () => q, order: () => q, limit: () => q,
+      eq: () => q, in: () => q, lte: () => q, is: () => q, gt: () => q, order: () => q, limit: () => q,
       maybeSingle: async (): Promise<Result> => ({ data: null, error: null }),
       single: async (): Promise<Result> => {
         const ids: Record<string, string> = { orders: "order_1", customers: "cust_1", agency_bookings: "booking_1", booking_transactions: "txn_1" };

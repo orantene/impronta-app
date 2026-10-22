@@ -35,6 +35,8 @@ import type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseR
 
 export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
+import { loadLinePhases } from "@/lib/orders/purchase-phases";
+import { buildOrderLineRows, indexInsertedLines } from "@/lib/orders/purchase-lines";
 import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
 import { resolveCheckoutCollectOrRefuse } from "@/lib/orders/purchase-collect";
 
@@ -216,7 +218,11 @@ export async function createPurchase(
     }
     const orderCurrency = ccy.currency;
 
-    const priced = withTableDeposit(pricePurchase(input.lines, {
+    // TUL-1302: the live price phase, as the storefront shows it and the counter charges it.
+    const livePhases = await loadLinePhases(admin, { tenantId: input.tenantId, lines: input.lines });
+    if (!livePhases.ok) return { ok: false, reason: "engine_error", error: "Could not read the price." };
+
+    const priced = withTableDeposit(pricePurchase(input.lines.map((l, i) => ({ ...l, ...livePhases.phases[i] })), {
       offerings: catalog.offerings,
       variants: catalog.variants,
       addons: catalog.addons,
@@ -392,24 +398,7 @@ export async function createPurchase(
     }
 
     // ── 6. Lines.
-    const lineRows = priced.lines.map((l, i) => ({
-      order_id: createdOrderId,
-      tenant_id: input.tenantId,
-      offering_id: l.offeringId,
-      variant_id: l.variantId,
-      addon_ids: l.addonIds,
-      label: l.label,
-      units: l.units,
-      unit_cents: l.unitCents,
-      total_cents: l.totalCents,
-      talent_profile_id: l.talentProfileId,
-      owner_tenant_id: l.ownerTenantId,
-      talent_cost_cents: l.talentCostCents,
-      ...(l.ownerTakeCents != null ? { owner_take_cents: l.ownerTakeCents, owner_share_snapshot: l.ownerShareSnapshot } : {}),
-      // Never `orders.session_id` (a box-office convenience); `mint-on-paid` filters on this.
-      session_id: input.lines[i]?.sessionId ?? null,
-      sort_order: i,
-    }));
+    const lineRows = buildOrderLineRows(priced.lines, { orderId: createdOrderId, tenantId: input.tenantId, sessionIds: input.lines.map((l) => l.sessionId) });
 
     const { data: insertedLines, error: linesErr } = await admin
       .from("order_lines")
@@ -423,10 +412,7 @@ export async function createPurchase(
     }
 
     // ── 7. Hold capacity: the caller's pools plus each line's offering stock (purchase-stock.ts).
-    const lineIdByOffering = new Map<string, string>();
-    for (const row of insertedLines as Array<{ id: string; offering_id: string | null }>) {
-      if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);
-    }
+    const lineIds = indexInsertedLines(insertedLines as Array<{ id: string; offering_id: string | null; sort_order: number | null }>);
 
     let shortestTtlSeconds: number | null = null;
     // Stock first (it skips lines the CALLER already pooled), then TUL-1375 linked chair/room/station.
@@ -509,7 +495,7 @@ export async function createPurchase(
         }
       }
 
-      const built = needs.length > 0 ? buildCapacityRequests(needs, lineIdByOffering) : { ok: true as const, requests: [] };
+      const built = needs.length > 0 ? buildCapacityRequests(needs, lineIds.byOffering, lineIds.byIndex) : { ok: true as const, requests: [] };
       if (!built.ok) {
         await unwind(`capacity requests refused: ${built.reason}`);
         return built.reason === "fractional_units_unsupported"
