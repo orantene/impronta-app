@@ -27,6 +27,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { TalentCancelBlock } from "./TalentCancelBlock";
+import { TalentSwitchToFree } from "@/components/billing/talent-switch-to-free";
 import { talentPlanPriceLine } from "@/lib/billing/talent-plan-price";
 import { PLAN_CATALOG, isKnownPlan } from "@/lib/access/plan-catalog";
 import { talentPlanCancelBlock } from "@/lib/billing/talent-cancel";
@@ -411,6 +412,11 @@ export function TalentPlanCard({
           onCompare={onCompare}
           onChanged={() => setReloadTick((n) => n + 1)}
         />
+      )}
+
+      {/* TUL-831: lower plan. Takes effect at the end of the paid period, nothing charged or refunded today. */}
+      {data.subscription && talentPlanCancelBlock(data.planKey, data.subscription) === "cancel" && (
+        <TalentSwitchToFree onChanged={() => setReloadTick((n) => n + 1)} />
       )}
 
       {/* Footer — always offer Compare plans */}
