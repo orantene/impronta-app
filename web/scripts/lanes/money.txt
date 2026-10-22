@@ -275,6 +275,7 @@ src/lib/pos/cash-outbox.test.ts
 src/lib/pos/classes/checkin.test.ts
 src/lib/pos/classes/day.test.ts
 src/lib/pos/classes/refusals.test.ts
+src/lib/pos/collection-recheck.test.ts
 src/lib/pos/collection.payer.test.ts
 src/lib/pos/collection.split.test.ts
 src/lib/pos/collective-split-apply.test.ts
