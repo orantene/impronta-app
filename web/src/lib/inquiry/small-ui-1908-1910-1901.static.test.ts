@@ -13,12 +13,18 @@ test("TUL-1908: header ES/EN links get a 44x44 hit box on phones", () => {
   assert.match(render, /\.site-builder-node--header-language-link\{[^}]*min-width:44px;min-height:44px/);
 });
 
-test("TUL-1910: /onboarding/role renders inside the layout that carries the footer", () => {
-  const layout = read("../../app/onboarding/layout.tsx");
-  assert.match(layout, /<OnboardingFooter/);
-  assert.match(layout, /<main className="flex-1">\{children\}<\/main>/);
-  // The page itself must not replace the shell (no second footer, no own layout override).
-  assert.doesNotMatch(read("../../app/onboarding/role/page.tsx"), /<footer/);
+test("TUL-1910: /onboarding/role redirects to /start, so /start carries the footer too", () => {
+  // Real cause: with the onboarding module on, the role page redirects pros to /start
+  // (legacySignupRedirect), and the /start layout rendered no footer.
+  assert.match(read("../../app/onboarding/role/page.tsx"), /legacySignupRedirect\(/);
+  const start = read("../../app/start/layout.tsx");
+  assert.match(start, /<OnboardingFooter \/>/);
+  assert.equal(start.match(/<main\b/g)?.length ?? 0, 1, "still a single main landmark");
+  assert.ok(start.indexOf("</main>") < start.indexOf("<OnboardingFooter"), "footer sits outside main");
+  // Same component as /onboarding/*, not a copy.
+  assert.match(read("../../app/onboarding/layout.tsx"), /<OnboardingFooter \/>/);
+  assert.equal(/<footer/.test(start), false);
+  assert.match(read("../../components/onboarding/onboarding-footer.tsx"), /export async function OnboardingFooter/);
 });
 
 test("TUL-1901: lineup count uses singular for one and plural for many, en and es", () => {
