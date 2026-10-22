@@ -18,6 +18,13 @@ import {
 } from "@/lib/directory/location-facets";
 import { countryLabel } from "@/lib/geo/country-code";
 import { liveGateIndexRows } from "@/lib/directory/live-gate-index-rows";
+import {
+  applyDiscoverIndexFilters,
+  orderRowsByIds,
+  pageLiveListedIds,
+  type DiscoverIndexFilters,
+  type IdPageFetcher,
+} from "@/lib/directory/discover-index-live-page";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -250,7 +257,58 @@ export async function loadDiscoverTalents(
   // query against talent_profiles is gone — its category-in-JS filter
   // is replaced with an index lookup on `category_slug`. See
   // supabase/migrations/20260515134903_talent_discover_index.sql.
-  let query = admin
+  // Location filters resolve through the residence FK, never the free text.
+  // `resolveLocationFilterIds` returns [] when the params match nothing, and
+  // that MUST scope to no results rather than silently dropping the filter.
+  let residenceCityIds: string[] | null = null;
+  if (opts.country || opts.city) {
+    const catalog = await loadLocationCatalog(admin);
+    residenceCityIds = resolveLocationFilterIds(catalog, {
+      country: opts.country,
+      city: opts.city,
+    });
+  }
+  const filters: DiscoverIndexFilters = {
+    category: opts.category,
+    hub: opts.hub,
+    residenceCityIds,
+    trustTier: opts.trustTier,
+    availableOnly: opts.availableOnly,
+    qFilter: opts.q ? await directoryQueryOrFilter(opts.q) : null,
+  };
+
+  // TUL-1940: gate the WHOLE filtered id set against LIVE talent_profiles
+  // (is_publicly_listed / is_publicly_hidden / deleted_at) BEFORE paging, so a
+  // stale matview row can never surface an unlisted talent and total is exact.
+  // Fails closed on any read error.
+  const byAvailability = opts.sort === "availability";
+  let pageIds: string[];
+  let liveTotal: number;
+  try {
+    const live = await pageLiveListedIds(
+      admin,
+      (from, to) => {
+        let q = applyDiscoverIndexFilters(admin.from("talent_discover_index").select("id"), filters);
+        if (byAvailability) {
+          q = q.order("available_days_in_next_30", { ascending: false, nullsFirst: false });
+        }
+        return q
+          .order("display_name", { ascending: true, nullsFirst: false })
+          .order("id", { ascending: true })
+          .range(from, to) as unknown as ReturnType<IdPageFetcher>;
+      },
+      offset,
+      limit,
+    );
+    pageIds = live.pageIds;
+    liveTotal = live.total;
+  } catch (e) {
+    logServerError("workspace.loadDiscoverTalents", e);
+    return { items: [], total: 0 };
+  }
+  if (pageIds.length === 0) return { items: [], total: liveTotal };
+
+  const { data, error } = await admin
     .from("talent_discover_index")
     .select(
       `id, display_name, first_name, last_name, profile_code,
@@ -259,42 +317,8 @@ export async function loadDiscoverTalents(
        category_label, category_slug,
        next_available_date, available_days_in_next_30, availability_dots_14d,
        trust_tier, rating_avg, rating_count, would_book_again_pct`,
-      { count: "exact" },
-    );
-
-  if (opts.category)  query = query.eq("category_slug", opts.category);
-  if (opts.hub)       query = query.eq("agency_tenant_id", opts.hub);
-  // Location filters resolve through the residence FK, never the free text.
-  // `resolveLocationFilterIds` returns [] when the params match nothing, and
-  // that MUST scope to no results rather than silently dropping the filter —
-  // a filter that no-ops when unresolvable is how a scoped page starts showing
-  // everything.
-  if (opts.country || opts.city) {
-    const catalog = await loadLocationCatalog(admin);
-    const ids = resolveLocationFilterIds(catalog, {
-      country: opts.country,
-      city: opts.city,
-    });
-    query = ids.length
-      ? query.in("residence_city_id", ids)
-      : query.is("id", null);
-  }
-  if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
-  if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  const qFilter = opts.q ? await directoryQueryOrFilter(opts.q) : null;
-  if (qFilter)        query = query.or(qFilter);
-
-  if (opts.sort === "availability") {
-    query = query
-      .order("available_days_in_next_30", { ascending: false, nullsFirst: false })
-      .order("display_name", { ascending: true, nullsFirst: false });
-  } else {
-    query = query.order("display_name", { ascending: true, nullsFirst: false });
-  }
-
-  query = query.range(offset, offset + limit - 1);
-
-  const { data, error, count } = await query;
+    )
+    .in("id", pageIds);
   if (error) {
     logServerError("workspace.loadDiscoverTalents", error);
     return { items: [], total: 0 };
@@ -323,9 +347,7 @@ export async function loadDiscoverTalents(
     would_book_again_pct: number | null;
   };
 
-  // The matview lags hides/unlists; drop anything not publicly listed NOW.
-  const gated = await liveGateIndexRows(admin, (data ?? []) as unknown as IndexRow[]);
-  const rows = gated.rows;
+  const rows = orderRowsByIds((data ?? []) as unknown as IndexRow[], pageIds);
   const ids = rows.map((r) => r.id);
 
   // Supplementary lookups: photos + geo coords. Both are kept off the
@@ -397,7 +419,7 @@ export async function loadDiscoverTalents(
     };
   });
 
-  return { items, total: Math.max(0, (count ?? items.length) - gated.dropped) };
+  return { items, total: liveTotal };
 }
 
 /**
