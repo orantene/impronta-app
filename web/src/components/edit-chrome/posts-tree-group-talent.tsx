@@ -7,7 +7,6 @@
  */
 import { useMemo } from "react";
 
-import { talentCreatePostDraftAction } from "@/lib/server-actions/posts-writer-actions";
 import {
   talentEnsurePostLayoutAction,
   talentListPostsTreeAction,
@@ -29,8 +28,8 @@ export function TalentPostsTreeGroup({ open, locale, onNavigate }: { open: boole
         return r.ok ? { ok: true } : r;
       },
       createPost: async () => {
-        const r = await talentCreatePostDraftAction({ locale: uiLocale }, uiLocale);
-        return r.ok ? { ok: true, href: `/talent/posts/${r.data.id}` } : { ok: false, error: r.message };
+        // TUL-1249: the writer creates the draft on the first real edit.
+        return { ok: true, href: "/talent/posts/new" };
       },
     }),
     [uiLocale],
