@@ -240,7 +240,7 @@ export async function loadOfferingDestinations(
   }
   const { data: roster, error: rosterError } = await auth.admin
     .from("agency_talent_roster")
-    .select("tenant_id, agencies:tenant_id ( name, slug )")
+    .select("tenant_id, agencies:tenant_id ( display_name, slug )")
     .eq("talent_profile_id", talentProfileId)
     .neq("status", "removed");
   if (rosterError) {
@@ -252,9 +252,9 @@ export async function loadOfferingDestinations(
     if (!agency) continue;
     destinations.push({
       id: `agency:${row.tenant_id}`,
-      label: agency.name ?? "Agency listing",
+      label: agency.display_name ?? "Agency listing",
       href: agency.slug ? `/${agency.slug}` : null,
-      enquiryTo: agency.name ?? "The agency",
+      enquiryTo: agency.display_name ?? "The agency",
     });
   }
   const { data: site, error: siteError } = await auth.admin
