@@ -1,4 +1,4 @@
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatOrderMoneyForLocale } from "@/lib/orders/money-format";
 
 /**
  * The order confirmation email. Pure: builds a subject and an HTML body.
@@ -102,7 +102,7 @@ export function renderOrderConfirmationEmail(input: OrderConfirmationInput): str
       (l) => `<tr>
         <td style="padding:8px 0;color:#3a4541;font-size:15px;">${escapeHtml(l.label)} &times; ${l.units}</td>
         <td style="padding:8px 0;color:#0f1714;font-size:15px;text-align:right;white-space:nowrap;">${escapeHtml(
-          formatOrderMoney(l.totalCents, input.currency),
+          formatOrderMoneyForLocale(l.totalCents, input.currency, input.locale),
         )}</td>
       </tr>`,
     )
@@ -112,7 +112,7 @@ export function renderOrderConfirmationEmail(input: OrderConfirmationInput): str
     ? `<p style="margin:16px 0 0;color:#2e7d5b;font-size:15px;">${c.paidLine}</p>`
     : `<p style="margin:16px 0 0;color:#b45309;font-size:15px;">${c.payInPersonLine}<br>
          <strong>${escapeHtml(c.outstandingLabel)}: ${escapeHtml(
-           formatOrderMoney(outstanding, input.currency),
+           formatOrderMoneyForLocale(outstanding, input.currency, input.locale),
          )}</strong></p>`;
 
   const receiptButton = input.receiptUrl
@@ -144,7 +144,7 @@ export function renderOrderConfirmationEmail(input: OrderConfirmationInput): str
             c.totalLabel,
           )}</td>
           <td style="padding:12px 0 0;border-top:1px solid rgba(15,23,20,0.08);font-size:15px;font-weight:600;text-align:right;white-space:nowrap;">${escapeHtml(
-            formatOrderMoney(input.totalCents, input.currency),
+            formatOrderMoneyForLocale(input.totalCents, input.currency, input.locale),
           )}</td>
         </tr>
       </table>

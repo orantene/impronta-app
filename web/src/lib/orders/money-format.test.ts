@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
-import { formatOrderMoney, minorUnitDivisor } from "./money-format";
+import { formatOrderMoney, formatOrderMoneyForLocale, minorUnitDivisor } from "./money-format";
 
 test("ARS renders as pesos with its code, never as dollars", () => {
   // The failure this exists for: 4500 pesos shown as "$4,500.00" is wrong by
@@ -120,4 +120,10 @@ test("money is NOT locale-formatted — an amount is not translated", () => {
   // The Sheet passed a locale into Intl, which is what inverted the symbols.
   // The formatter takes no locale, and this pins that it never gains one.
   assert.equal(formatOrderMoney.length, 2, "formatOrderMoney(cents, currency) — no locale");
+});
+
+test("TUL-1922: USD carries its code on a non-English page, English stays bare", () => {
+  assert.equal(formatOrderMoneyForLocale(2500, "USD", "es"), "$25.00 USD");
+  assert.equal(formatOrderMoneyForLocale(2500, "USD", "en"), "$25.00");
+  assert.equal(formatOrderMoneyForLocale(2500, "MXN", "es"), "25.00 MXN");
 });

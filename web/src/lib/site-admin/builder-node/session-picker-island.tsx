@@ -287,7 +287,7 @@ export function SessionPickerIsland({
       const actions = await getActions();
       let offering = (offeringId ?? "").trim();
       if (!offering) {
-        const listed = await actions.listSessionPickerOfferings({ tenantId: tenant });
+        const listed = await actions.listSessionPickerOfferings({ tenantId: tenant, locale: loc });
         if (!listed.ok) {
           setHidden(true);
           setSessions([]);

@@ -16,6 +16,7 @@
 // WORKSPACE_PAGE_SEGMENTS has no `reservations` entry, and adding one is the
 // Dashboards Director's file, not mine.
 
+import { bandSummaryLabel } from "@/lib/reservations/band-summary-label";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
@@ -96,7 +97,7 @@ export default async function ReservationSettingsPage({ params }: { params: Page
       : config.bands
           .slice()
           .sort((a, b) => a.partyMax - b.partyMax)
-          .map((b) => `${b.name} (${b.partyMin} ${es ? "a" : "to"} ${b.partyMax})`)
+          .map((b) => bandSummaryLabel(b, es))
           .join(" · ");
 
   // TUL-1334: the items staff can pick as "the reservation item".
