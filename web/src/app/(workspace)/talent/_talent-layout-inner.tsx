@@ -23,6 +23,10 @@ import { loadTalentAgenda } from "@/lib/talent-agenda/load";
 import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { EMPTY_TALENT_EARNINGS_BY_CURRENCY } from "@/lib/talent/earnings-by-currency-types";
+import { TALENT_LOADER_BUDGET_MS } from "@/lib/talent/loader-budget";
+import { EMPTY_TALENT_PAYOUT_ATTENTION } from "@/lib/payments/talent-payout-attention-types";
+import { withTimeout } from "@/lib/tulala/with-timeout";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { getTalentConnectedAccountSnapshot, resolveTalentPayoutCountry } from "@/lib/payments/stripe-connect-talent";
 import { loadTalentPayoutAttention } from "@/lib/payments/talent-payout-attention";
@@ -375,7 +379,13 @@ export async function TalentLayoutInner({
     timed("talent.loadTalentAgendaForLayout", () => talentAgendaV2
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null })),
-    timed("talent.loadTalentEarningsByCurrency", () => loadTalentEarningsByCurrency(talentSelfProfile.id)),
+    // TUL-1113: Today's money reads share the 2 s first-paint budget; past it they paint empty.
+    timed("talent.loadTalentEarningsByCurrency", () =>
+      withTimeout(loadTalentEarningsByCurrency(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, {
+        ...EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+        loadError: "Could not load earnings.",
+      }),
+    ),
     timed("talent.loadTalentPersonalSiteDashboardState", () => early?.siteDashboard ?? loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
       requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
     })),
@@ -387,7 +397,9 @@ export async function TalentLayoutInner({
     // Payout legs that did NOT land (reversed / failed / still held), with
     // booking context, for the Payouts page. Supersedes the held-only totals:
     // a reversed leg reached no talent surface at all before this.
-    timed("talent.loadTalentPayoutAttention", () => loadTalentPayoutAttention(talentSelfProfile.id)),
+    timed("talent.loadTalentPayoutAttention", () =>
+      withTimeout(loadTalentPayoutAttention(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, EMPTY_TALENT_PAYOUT_ATTENTION),
+    ),
 
     // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
     // to the hardcoded structure), so it can't break the layout.
