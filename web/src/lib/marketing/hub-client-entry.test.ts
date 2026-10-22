@@ -44,12 +44,14 @@ test("TUL-856/863: ES page sends /es/login and an /es/t next on the public host;
 test("TUL-694: hub Entrar opens the client sign-in popover instead of navigating", () => {
   const h = read("src/components/marketing/header.tsx");
   assert.match(h, /ClientAccountButton/);
-  assert.match(h, /CLIENT_ACCOUNT_OPEN_EVENT/);
+  assert.match(h, /openClientAccountOrNavigate\(clientEntry\.signInHref\)/); // dispatches CLIENT_ACCOUNT_OPEN_EVENT, falls back to the href (TUL-759)
   // Both Entrar anchors (desktop + mobile menu) prevent default and open the popover.
   const entrar = h.match(/href=\{clientEntry\.signInHref\}[\s\S]{0,260}?onClick=/g) ?? [];
   assert.equal(entrar.length, 2);
   const btn = read("src/components/client-account/ClientAccountButton.tsx");
   assert.match(btn, /export const CLIENT_ACCOUNT_OPEN_EVENT/);
+  assert.match(btn, /export function openClientAccountOrNavigate/);
+  assert.match(btn, /dispatchEvent\(new CustomEvent\(CLIENT_ACCOUNT_OPEN_EVENT/);
   assert.match(btn, /addEventListener\(CLIENT_ACCOUNT_OPEN_EVENT/);
   assert.match(btn, /hideTrigger/);
 });

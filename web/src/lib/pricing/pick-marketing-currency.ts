@@ -81,10 +81,10 @@ export function pickMarketingCurrency(input: {
  * show USD amounts under an MXN label. Resolve to USD instead so the picker,
  * the label and the amounts agree.
  */
-export function fxSafeMarketingCurrency(
-  pick: MarketingCurrencyPick,
+export function fxSafeMarketingCurrency<T extends { currency: DefaultCurrencyCode; source: string }>(
+  pick: T,
   mxnRate: number | null | undefined,
-): MarketingCurrencyPick {
+): T | MarketingCurrencyPick {
   if (pick.currency === "MXN" && (mxnRate == null || !Number.isFinite(mxnRate) || mxnRate <= 0)) {
     return { currency: MARKETING_FALLBACK_CURRENCY, source: "fallback" };
   }

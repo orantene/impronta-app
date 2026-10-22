@@ -1,6 +1,7 @@
 import "server-only";
 
 import { userHasCapability } from "@/lib/access";
+import { cashierMayCancelSale } from "@/lib/pos/cancel-eligibility";
 import { requireInquiryManagerAction, requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -48,4 +49,26 @@ export async function posStaffOrInquiryManager(
     }
   }
   return posStaff(capability);
+}
+
+/**
+ * PM 2026-10-21: a cashier may cancel only an unpaid draft with no payment in flight; anything
+ * else needs booking.payment.request (manager+). Returns the refusal, or null when allowed.
+ * Fails closed on any read error.
+ */
+export async function posCancelRefusal(
+  g: { tenantId: string; admin: NonNullable<ReturnType<typeof createServiceRoleClient>> },
+  orderId: string,
+) {
+  if (await userHasCapability("booking.payment.request", g.tenantId)) return null;
+  const [orderRes, payRes] = await Promise.all([
+    g.admin.from("orders").select("status").eq("id", orderId).eq("tenant_id", g.tenantId).maybeSingle(),
+    g.admin.from("booking_transactions").select("status").eq("order_id", orderId),
+  ]);
+  const status = (orderRes.data as { status?: string } | null)?.status;
+  const ok =
+    !orderRes.error &&
+    !payRes.error &&
+    cashierMayCancelSale({ status, payments: (payRes.data ?? []) as Array<{ status: string }> });
+  return ok ? null : { ok: false as const, error: "not_allowed" };
 }

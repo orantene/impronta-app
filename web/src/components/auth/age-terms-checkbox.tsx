@@ -35,7 +35,9 @@ export function AgeTermsCheckbox({
   const [checked, setChecked] = useState(() => readAuthConsentDraft());
   const inputRef = useRef<HTMLInputElement>(null);
   const checkedRef = useRef(checked);
-  checkedRef.current = checked;
+  useEffect(() => {
+    checkedRef.current = checked;
+  }, [checked]);
   // TUL-1235 (round 2): React 19 calls requestFormReset after a form action, which
   // sets the DOM box back to its default while the state stays true. Re-apply the
   // state after every reset (the reset event fires BEFORE the reset runs).

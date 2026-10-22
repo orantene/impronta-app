@@ -369,11 +369,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     if (navigating) return;
     setNavigating(true);
     try {
-      await navigateToEditSurface({
-        dirty,
-        flush: flushBuilderTreeSave,
-        href: pageEditHref(window.location.pathname, slug),
-      });
+      await navigateToEditSurface({ dirty, flush: flushBuilderTreeSave, href: pageEditHref(window.location.pathname, slug) });
       onClose();
     } finally {
       setNavigating(false);
@@ -387,8 +383,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     // denied just re-confirms nothing changed instead of hitting the server
     // for a request we already know will be denied.
     if (addPageDenialMessage) {
-      // TUL-1816-adjacent (TUL-1408): answer the click. The reason is already
-      // inline; pulse it so a click on a blocked "Add page" is never silent.
+      // TUL-1408: answer the click; the reason is already inline, pulse it so a blocked "Add page" is never silent.
       setDenialPulse(true);
       window.setTimeout(() => setDenialPulse(false), 1400);
       return;
@@ -400,11 +395,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       if (result.ok) {
         // Flush the current page's draft before navigating to the new page so
         // un-persisted edits aren't lost when the route changes (see navToPage).
-        await navigateToEditSurface({
-          dirty,
-          flush: flushBuilderTreeSave,
-          href: pageEditHref(window.location.pathname, result.slug),
-        });
+        await navigateToEditSurface({ dirty, flush: flushBuilderTreeSave, href: pageEditHref(window.location.pathname, result.slug) });
         onClose();
       } else {
         setFetchErr(result.error);
@@ -430,11 +421,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     try {
       const result = await createDraftPageAction();
       if (result.ok) {
-        await navigateToEditSurface({
-          dirty,
-          flush: flushBuilderTreeSave,
-          href: pageEditHref(window.location.pathname, result.slug, "ai=1"),
-        });
+        await navigateToEditSurface({ dirty, flush: flushBuilderTreeSave, href: pageEditHref(window.location.pathname, result.slug, "ai=1") });
         onClose();
       } else {
         setFetchErr(result.error);
@@ -537,9 +524,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             above is never a silent dead end, plus a real path to fix it. */}
         {addPageDenialMessage ? (
           <div
-            role="status"
-            aria-live="polite"
-            data-testid="add-page-denial"
+            role="status" aria-live="polite" data-testid="add-page-denial"
             className={`mb-[8px] rounded-[10px] border px-[10px] py-[9px] transition-shadow ${denialPulse ? "shadow-[0_0_0_3px_rgba(37,99,235,0.35)]" : ""}`}
             style={{ borderColor: CHROME.blueLine, background: CHROME.blueBg }}
           >

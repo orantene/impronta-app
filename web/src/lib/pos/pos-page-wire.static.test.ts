@@ -310,8 +310,11 @@ test("PM 2026-10-21: cash drawer open/close is operate_venue; cancel is operate_
   }
   const cancel = src.slice(src.indexOf("export async function posCancelSale"), src.indexOf("export async function posSubmitPrep"));
   assert.match(cancel, /posStaff\("operate_venue"\)/);
-  assert.match(cancel, /userHasCapability\("booking\.payment\.request", g\.tenantId\)/);
-  assert.match(cancel, /cashierMayCancelSale\(/);
-  assert.match(cancel, /error: "not_allowed"/);
+  assert.match(cancel, /posCancelRefusal\(g, orderId\)/);
+  // The unpaid-draft rule lives in staff-actor.ts (kept out of actions.ts for the 800-line cap).
+  const gate = read("src/lib/pos/staff-actor.ts").slice(read("src/lib/pos/staff-actor.ts").indexOf("export async function posCancelRefusal"));
+  assert.match(gate, /userHasCapability\("booking\.payment\.request", g\.tenantId\)/);
+  assert.match(gate, /cashierMayCancelSale\(/);
+  assert.match(gate, /error: "not_allowed"/);
   assert.doesNotMatch(src, /posStaff\("booking\.payment\.mark_received"\)/);
 });

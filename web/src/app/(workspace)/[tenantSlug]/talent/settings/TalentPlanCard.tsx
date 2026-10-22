@@ -349,7 +349,7 @@ export function TalentPlanCard({
 
   const def = isKnownPlan(data.planKey) ? PLAN_CATALOG[data.planKey] : null;
   const priceLine =
-    def && def.monthlyPriceCents > 0
+    def && def.monthlyPriceCents !== null && def.monthlyPriceCents > 0
       ? talentPlanPriceLine({
           monthlyCents: def.monthlyPriceCents,
           annualCents: data.billingInterval === "year" ? (data.billedAmountCents ?? def.annualPriceCents) : null,

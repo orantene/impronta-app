@@ -19,6 +19,7 @@
 // Env stubs are placeholders, never secrets. Run from web/.
 
 import { spawn } from "node:child_process";
+import http from "node:http";
 import { createWriteStream, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -41,17 +42,35 @@ export function withRequireModuleOff(existing) {
   return parts.join(" ");
 }
 
+/**
+ * One GET over node:http. Global fetch (undici) silently DROPS a custom Host header and sends
+ * 127.0.0.1:<port>, which the proxy then 404s as an unregistered host; node:http honors it.
+ */
+export function getWithHost(port, path, host = SMOKE_HOST) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      { host: "127.0.0.1", port: Number(port), path, method: "GET", headers: { host } },
+      (res) => {
+        res.resume();
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, location: res.headers.location ?? null }));
+      },
+    );
+    req.setTimeout(60000, () => req.destroy(new Error("request timed out")));
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 /** GET with manual redirect following (max 5) so the Host header survives each hop. */
 export async function fetchFinal(port, path, host = SMOKE_HOST) {
-  let url = `http://127.0.0.1:${port}${path}`;
+  let target = path;
   const hops = [];
   for (let i = 0; i < 6; i++) {
-    const res = await fetch(url, { redirect: "manual", headers: { host } });
-    hops.push(`${res.status} ${url}`);
-    const loc = res.headers.get("location");
-    if (res.status >= 300 && res.status < 400 && loc) {
-      const next = new URL(loc, `http://${host}:${port}`);
-      url = `http://127.0.0.1:${port}${next.pathname}${next.search}`;
+    const res = await getWithHost(port, target, host);
+    hops.push(`${res.status} ${target}`);
+    if (res.status >= 300 && res.status < 400 && res.location) {
+      const next = new URL(res.location, `http://${host}:${port}`);
+      target = `${next.pathname}${next.search}`;
       continue;
     }
     return { status: res.status, hops };
@@ -103,7 +122,7 @@ async function main() {
     let up = false;
     for (let i = 0; i < 60 && !exited; i++) {
       try {
-        await fetch(`http://127.0.0.1:${port}/`, { redirect: "manual", headers: { host: SMOKE_HOST } });
+        await getWithHost(port, "/");
         up = true;
         break;
       } catch {

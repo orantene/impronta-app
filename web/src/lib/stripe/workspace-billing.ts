@@ -44,9 +44,7 @@ import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
 import { buildPortalSessionParams, withoutPortalConfiguration } from "@/lib/stripe/portal-params";
-import {
-  stripeCheckoutLocale,
-} from "@/lib/i18n/vendor-locale";
+import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
 import { createTranslator } from "@/i18n/messages";
 import { isDefiniteStripeFailure } from "@/lib/billing/stripe-failure";
@@ -94,8 +92,7 @@ export async function getOrCreateStripeCustomer(
       if (!(await storedCustomerIsStale(stripe, existing.stripe_customer_id))) {
         return { ok: true, data: existing.stripe_customer_id };
       }
-      // The id belongs to another Stripe account/sandbox (or was deleted): mint a new one and replace the mapping.
-      replacingStale = true;
+      replacingStale = true; // the id belongs to another Stripe account/sandbox (or was deleted): mint a new one
       logServerExpected("workspace-billing.getOrCreateCustomer.stale", new Error(`stored Stripe customer ${existing.stripe_customer_id} not found; recreating`));
     }
 
@@ -107,11 +104,7 @@ export async function getOrCreateStripeCustomer(
     });
 
     // Persist to DB
-    const row = {
-      tenant_id: tenantId,
-      stripe_customer_id: customer.id,
-      billing_email: ownerEmail,
-    };
+    const row = { tenant_id: tenantId, stripe_customer_id: customer.id, billing_email: ownerEmail };
     const { error } = replacingStale
       ? await sb.from("stripe_customers").upsert(row, { onConflict: "tenant_id" })
       : await sb.from("stripe_customers").insert(row);
@@ -210,10 +203,7 @@ export async function createWorkspaceCheckoutSession(opts: {
 
   const price = await resolveCheckoutPrice((i) => resolveWorkspacePriceId(opts.planKey, i), opts.interval);
   if (!price.ok) {
-    logServerError(
-      "workspace-billing.checkout.price",
-      new Error(`plan=${opts.planKey} code=${price.code}: the catalog resolved no Stripe price id for this plan/interval`),
-    );
+    logServerError("workspace-billing.checkout.price", new Error(`plan=${opts.planKey} code=${price.code}: the catalog resolved no Stripe price id`));
     return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
   }
   const priceId = price.priceId;

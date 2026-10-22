@@ -25,7 +25,7 @@ export async function saveStaffLimitsAction(
   input: z.input<typeof inputSchema>,
 ): Promise<{ ok: true } | { ok: false; reason: "not_allowed" | "invalid" | "unavailable" }> {
   await requireNotImpersonating();
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "transfer_ownership" });
   if (!staff.ok) return { ok: false, reason: "not_allowed" };
   if (!(await userHasCapability("transfer_ownership", staff.tenantId))) return { ok: false, reason: "not_allowed" };
   const parsed = inputSchema.safeParse(input);

@@ -23,9 +23,7 @@ import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { saleHoldsNonMenuOffering } from "@/lib/offerings/non-menu-offerings";
 import { scanTarget } from "@/lib/pos/scan-code";
-import { userHasCapability } from "@/lib/access";
-import { cashierMayCancelSale } from "@/lib/pos/cancel-eligibility";
-import { posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
+import { posCancelRefusal, posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Lock, tip, payment-link, and waitlist actions: `@/lib/server-actions/pos-engine`. */
@@ -40,10 +38,7 @@ export type PosCustomerHit = {
   phone: string | null;
 };
 
-/**
- * The actor's membership role, for the role limits (D-139). Null for a
- * caller with no membership row (a platform operator), who is not limited.
- */
+/** The actor's membership role, for the role limits (D-139); null for a platform operator, who is not limited. */
 async function actorRole(tenantId: string): Promise<string | null> {
   const membership = await findTenantMembership(tenantId);
   return membership?.role ?? null;
@@ -84,11 +79,8 @@ export async function posAddLine(input: {
     inquiryId: uuid.nullable().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
-  const g = await posStaffOrInquiryManager(
-    parsed.data.inquiryId,
-    // The Messages inquiry path keeps the manager bar; the counter (no inquiry) is editor-level.
-    parsed.data.inquiryId ? "booking.payment.request" : "operate_venue",
-  );
+  // The Messages inquiry path keeps the manager bar; the counter (no inquiry) is editor-level.
+  const g = await posStaffOrInquiryManager(parsed.data.inquiryId, parsed.data.inquiryId ? "booking.payment.request" : "operate_venue");
   if (!g.ok) return g;
   const refused = await counterAddRefusal(g.admin, g.tenantId, parsed.data); if (refused) return refused;
   return addLine(g.admin, {
@@ -268,20 +260,7 @@ export async function posCancelSale(orderId: string, expectedVersion?: number) {
   const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
-  // PM 2026-10-21: a cashier may cancel only an unpaid draft with no payment in flight; anything
-  // else needs booking.payment.request (manager+). Fails closed on any read error.
-  if (!(await userHasCapability("booking.payment.request", g.tenantId))) {
-    const [orderRes, payRes] = await Promise.all([
-      g.admin.from("orders").select("status").eq("id", orderId).eq("tenant_id", g.tenantId).maybeSingle(),
-      g.admin.from("booking_transactions").select("status").eq("order_id", orderId),
-    ]);
-    const status = (orderRes.data as { status?: string } | null)?.status;
-    const ok =
-      !orderRes.error &&
-      !payRes.error &&
-      cashierMayCancelSale({ status, payments: (payRes.data ?? []) as Array<{ status: string }> });
-    if (!ok) return { ok: false as const, error: "not_allowed" };
-  }
+  const refused = await posCancelRefusal(g, orderId); if (refused) return refused;
   return finalizeOrCancel(g.admin, {
     tenantId: g.tenantId,
     orderId,
