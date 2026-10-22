@@ -1797,6 +1797,12 @@
       "dismiss": "No thanks",
       "regionLabel": "Language suggestion"
     },
+    "onboardingShell": {
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "contact": "Contact",
+      "signIn": "Sign in"
+    },
     "hubLanding": {
       "agenciesTitle": "Agencies on the platform",
       "tagline": "Each agency runs its own storefront at its own domain. Visit one to browse its talent roster and open an inquiry.",

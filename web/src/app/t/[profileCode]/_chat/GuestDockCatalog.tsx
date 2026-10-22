@@ -423,7 +423,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : null}
-            {selectInPage && row.available ? null : buyHref && row.available && !row.requestOnly ? (
+            {selectInPage && row.available ? null : buyHref && row.available && !row.requestOnly && !(row.offeringId && (row.category === "service" || row.category === "class")) ? (
               <SmallButton itemName={row.title}
                 label={row.category === "service" || row.category === "class" ? t("public.guestChat.catalogAdd") : dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
                 href={buyHref}

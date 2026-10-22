@@ -5,7 +5,7 @@ import { AgencyHomeStorefront } from "@/components/home/agency-home-storefront";
 import { AppLanding } from "@/components/home/app-landing";
 import { appLandingLocale } from "@/components/home/app-landing-locale.server";
 import { HubLanding } from "@/components/home/hub-landing";
-import { hubLandingCopy } from "@/components/home/hub-landing-copy";
+import { hubDisplayName, hubLandingCopy } from "@/components/home/hub-landing-copy";
 import { MarketingLanding } from "@/components/home/marketing-landing";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -119,7 +119,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const businessMeta = tenantWords
       ? businessHomeMeta(tenantWords.preset, identity, t)
       : null;
-    const brandName = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+    const brandName = hubDisplayName(identity?.public_name, PLATFORM_BRAND.name);
     const fallbackTitle =
       ctx.kind === "hub"
         ? hubLandingCopy(locale).metaTitle(brandName)

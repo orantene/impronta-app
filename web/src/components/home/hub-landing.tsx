@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { HubAgencyList } from "./hub-agency-list";
+import { hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -44,8 +46,8 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
 
   // TUL-978: the fixed copy follows the visitor's locale (CMS text is data and stays as written).
   const t = createTranslator(locale);
-  const kicker = identity?.public_name ?? "Tulala";
-  const tagline = identity?.tagline ?? t("public.hubLanding.tagline");
+  const kicker = hubDisplayName(identity?.public_name, PLATFORM_BRAND.name); // TUL-1884
+  const tagline = hubDisplayTagline(identity?.tagline, t("public.hubLanding.tagline"));
   const heroTitle = cmsHomepage?.title ?? t("public.hubLanding.agenciesTitle");
 
   return (
