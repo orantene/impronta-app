@@ -7148,10 +7148,10 @@
         "connectPlaceholder": "your-agency.com",
         "connectAction": "Connect domain",
         "connectHelp": "You will get the exact DNS records to add at your domain provider. Your site stays online the whole time.",
-        "planLockedBody": "Connecting your own domain is part of the Agency plan. Your site keeps working at its current address.",
+        "planLockedBody": "Connecting your own domain is part of the Website, Agency and Network plans. Your site keeps working at its current address.",
         "planLockedFeature": "Custom domain",
         "planLockedWhy": "Run your public site at a domain you own instead of a Tulala address.",
-        "planLockedCta": "See the Agency plan"
+        "planLockedCta": "See the plans"
       },
       "starterDoorTitle": "Your site has no pages yet",
       "starterDoorBody": "Start from a ready-made set — a home page, a not-found page and a directory — then edit anything you like.",
@@ -11685,7 +11685,7 @@
       },
       "domain": {
         "title": "Domain & Home",
-        "body": "Subdomain config, custom domain (Agency), homepage assignment, blog index assignment."
+        "body": "Subdomain config, custom domain (Website, Agency, Network), homepage assignment, blog index assignment."
       },
       "homepage": {
         "title": "Homepage",

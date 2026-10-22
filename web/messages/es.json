@@ -7148,10 +7148,10 @@
         "connectPlaceholder": "tu-agencia.com",
         "connectAction": "Conectar dominio",
         "connectHelp": "Te daremos los registros DNS exactos para agregar en tu proveedor de dominio. Tu sitio sigue en línea todo el tiempo.",
-        "planLockedBody": "Conectar tu propio dominio es parte del plan Agency. Tu sitio sigue funcionando en su dirección actual.",
+        "planLockedBody": "Conectar tu propio dominio es parte de los planes Website, Agency y Network. Tu sitio sigue funcionando en su dirección actual.",
         "planLockedFeature": "Dominio propio",
         "planLockedWhy": "Publica tu sitio en un dominio tuyo en lugar de una dirección de Tulala.",
-        "planLockedCta": "Ver el plan Agency"
+        "planLockedCta": "Ver los planes"
       },
       "starterDoorTitle": "Tu sitio aún no tiene páginas",
       "starterDoorBody": "Empieza con un conjunto listo: una página de inicio, una de página no encontrada y un directorio. Después edita lo que quieras.",
@@ -11685,7 +11685,7 @@
       },
       "domain": {
         "title": "Dominio e inicio",
-        "body": "Configuración del subdominio, dominio propio (Agency), asignación de la página de inicio y del índice del blog."
+        "body": "Configuración del subdominio, dominio propio (Website, Agency, Network), asignación de la página de inicio y del índice del blog."
       },
       "homepage": {
         "title": "Página de inicio",

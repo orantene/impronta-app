@@ -43,14 +43,17 @@ async function buildRequest(
       : await sb.from("workspace_subscriptions").select("stripe_subscription_id").eq("tenant_id", subjectId).maybeSingle();
   if (read.error) logServerError("billing.planChange.read", read.error);
   const subscriptionId = (read.data as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null;
-  if (!subscriptionId) return { error: "You do not have a paid plan to change yet.", code: "no_subscription" };
+  if (!subscriptionId) {
+    logServerError("billing.planChange.no-subscription", new Error(`kind=${kind} toPlan=${toPlan}: no stripe_subscription_id on the subscription row`));
+    return { error: "You do not have a paid plan to change yet.", code: "no_subscription" };
+  }
   const toInterval = parseBillingInterval(rawInterval);
   const catalog = toCatalogInterval(toInterval);
   const toPriceId =
     kind === "talent"
       ? await resolveTalentPriceId(toPlan as TalentPlanKey, catalog)
       : await resolveWorkspacePriceId(toPlan as WorkspacePlanKey, catalog);
-  return { kind, subjectId, subscriptionId, toPlan, toInterval, toPriceId: toPriceId?.trim() || null };
+  return { kind, subjectId, subscriptionId, toPlan, toInterval, toPriceId: toPriceId?.trim() || null, onError: logServerError };
 }
 
 export async function previewPlanChangeFor(
@@ -60,7 +63,10 @@ export async function previewPlanChangeFor(
   interval: unknown,
 ): Promise<PlanChangePreview> {
   const stripe = getStripe();
-  if (!stripe) return { ok: false, error: "Billing is not available yet.", code: "stripe" };
+  if (!stripe) {
+    logServerError("billing.planChange.preview.no-stripe", new Error("getStripe() returned null: STRIPE_SECRET_KEY unset or key/mode mismatch"));
+    return { ok: false, error: "Billing is not available yet.", code: "stripe" };
+  }
   const req = await buildRequest(kind, subjectId, toPlan, interval);
   if ("error" in req) return { ok: false, error: req.error, code: req.code };
   const out = await previewPlanChange(stripe, req);
@@ -76,7 +82,10 @@ export async function confirmPlanChangeFor(
   prorationDate: unknown,
 ): Promise<PlanChangeConfirm> {
   const stripe = getStripe();
-  if (!stripe) return { ok: false, error: "Billing is not available yet.", code: "stripe" };
+  if (!stripe) {
+    logServerError("billing.planChange.confirm.no-stripe", new Error("getStripe() returned null: STRIPE_SECRET_KEY unset or key/mode mismatch"));
+    return { ok: false, error: "Billing is not available yet.", code: "stripe" };
+  }
   const req = await buildRequest(kind, subjectId, toPlan, interval);
   if ("error" in req) return { ok: false, error: req.error, code: req.code };
   const out = await confirmPlanChange(stripe, req, prorationDate);
