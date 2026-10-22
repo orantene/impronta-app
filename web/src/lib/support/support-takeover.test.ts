@@ -44,3 +44,10 @@ test("an AI-named ai_unavailable reason only offers a person", () => {
   assert.equal(shouldOfferHumanInsteadOfEscalating("ai_unavailable"), true);
   assert.equal(shouldOfferHumanInsteadOfEscalating("legal"), false);
 });
+
+test("the guest support-chat route checks the takeover before any model call", () => {
+  const src = readFileSync(new URL("../../app/api/ai/guest-support-chat/route.ts", import.meta.url), "utf8");
+  const check = src.indexOf("readTakeover(ticket.metadata) !== null");
+  assert.ok(check > 0);
+  assert.ok(check < src.indexOf("chatCompletion"));
+});
