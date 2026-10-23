@@ -97,6 +97,8 @@ export type ReceiptPageModel = {
   totalLabel: string;
   eventHref: string | null;
   discountLabel: string | null;
+  /** TUL-1920: set when a Tulala service fee was charged on top of the price. */
+  feeBreakdown?: { subtotal: string; feeLabel: string; fee: string; totalLabel: string; total: string } | null;
   lines: ReceiptLineView[];
   admissions: ReceiptAdmissionView[];
   /** TUL-G4: false shows "Save your bookings"; null/true/absent hides it. */
@@ -205,6 +207,13 @@ export function ReceiptPageView(m: ReceiptPageModel) {
           <p className="px-5 pb-4 text-right text-sm sm:px-6" style={{ color: "var(--token-color-muted)" }}>
             {m.discountLabel}
           </p>
+        ) : null}
+        {m.feeBreakdown ? (
+          <dl data-receipt="fee-breakdown" className="m-0 px-5 pb-5 text-sm sm:px-6" style={{ borderTop: "1px solid var(--token-color-line)", paddingTop: 12 }}>
+            <div className="flex justify-between gap-4"><dt>Subtotal</dt><dd className="m-0">{m.feeBreakdown.subtotal}</dd></div>
+            <div className="flex justify-between gap-4"><dt>{m.feeBreakdown.feeLabel}</dt><dd className="m-0">{m.feeBreakdown.fee}</dd></div>
+            <div className="flex justify-between gap-4 font-semibold"><dt>{m.feeBreakdown.totalLabel}</dt><dd className="m-0">{m.feeBreakdown.total}</dd></div>
+          </dl>
         ) : null}
       </section>
 

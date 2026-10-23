@@ -32,6 +32,8 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 
 import type { PickerOffering, PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
 import { money } from "./ticket-picker-copy";
+import { useCardFeeQuote } from "@/components/public-booking/use-card-fee-quote";
+import { serviceFeeRows } from "@/lib/orders/service-fee-rows";
 
 type Locale = "en" | "es";
 
@@ -322,6 +324,23 @@ export function SessionPickerIsland({
     void load();
   }, [load]);
 
+  // TUL-1920: the server's own quote (the same pass-through gross-up Checkout charges), so a Tulala service
+  // fee on top of the price is shown BEFORE paying. Null while loading or on failure: the list price shows as before.
+  const feeQuote = useCardFeeQuote({
+    enabled: Boolean(chosen) && (price.amountCents ?? 0) > 0,
+    offeringId: boundOfferingId,
+    variantId: null,
+    addOnIds: [],
+    units: seats,
+  });
+  const feeRows = feeQuote
+    ? serviceFeeRows(
+        { subtotalCents: feeQuote.totalCents, chargedCents: feeQuote.payNowCents },
+        loc === "es",
+        (c) => money(c, feeQuote.currency, loc, ""),
+      )
+    : null;
+
   function chooseClass(id: string) {
     if (id === (boundOfferingId ?? "")) return;
     // A different class is a different cart: its dates, price and currency replace the old ones.
@@ -504,9 +523,17 @@ export function SessionPickerIsland({
           <div>
             {t("perPerson").replace("{price}", money(price.amountCents, price.currency, loc, ""))}
           </div>
-          <div style={{ fontWeight: 600 }}>
-            {t("total").replace("{price}", money(price.amountCents * seats, price.currency, loc, ""))}
-          </div>
+          {feeRows ? (
+            <div data-session-picker="fee-breakdown">
+              <div>{`Subtotal ${feeRows.subtotal}`}</div>
+              <div>{`${feeRows.feeLabel} ${feeRows.fee}`}</div>
+              <div style={{ fontWeight: 600 }}>{`${feeRows.totalLabel} ${feeRows.total}`}</div>
+            </div>
+          ) : (
+            <div style={{ fontWeight: 600 }}>
+              {t("total").replace("{price}", money(price.amountCents * seats, price.currency, loc, ""))}
+            </div>
+          )}
         </div>
       ) : null}
 

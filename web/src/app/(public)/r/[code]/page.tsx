@@ -13,6 +13,8 @@ import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import { chargedGrossCents, serviceFeeRows } from "@/lib/orders/service-fee-rows";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { COPY, ReceiptPageView, type ReceiptLocale } from "./receipt-page-view";
@@ -220,6 +222,31 @@ export default async function ReceiptPage({ params }: Params) {
   const moneyLabel = (cents: number) =>
     cents === 0 ? t("free") : money(cents, receipt.order.currency);
 
+  // TUL-1920: what Stripe actually charged. The anon client cannot read the money rows, so the paid
+  // transactions of THIS order (already proven by the receipt code + tenant check above) are read by key.
+  // A fee on top of the price shows as Subtotal / Tulala service fee / Total; any failure keeps the order total.
+  let feeBreakdown: { subtotal: string; feeLabel: string; fee: string; totalLabel: string; total: string } | null = null;
+  try {
+    const admin = createServiceRoleClient();
+    if (admin && receipt.order.status !== "refunded") {
+      const { data: txns, error: txnErr } = await admin
+        .from("booking_transactions")
+        .select("status, gross_amount_cents, refund_of_transaction_id")
+        .eq("order_id", receipt.order.id);
+      if (txnErr) logServerError("receipt.read/charged", txnErr);
+      const charged = txnErr ? null : chargedGrossCents(txns ?? []);
+      if (charged != null) {
+        feeBreakdown = serviceFeeRows(
+          { subtotalCents: receipt.order.totalCents, chargedCents: charged },
+          locale === "es",
+          (c) => money(c, receipt.order.currency),
+        );
+      }
+    }
+  } catch (err) {
+    logServerError("receipt.read/charged", err);
+  }
+
   const eventIds = [...new Set(receipt.sessions.map((s) => s.eventId).filter((id): id is string => Boolean(id)))];
   const { data: eventRows, error: eventErr } = eventIds.length
     ? await supabase.from("events").select("id, slug, title").eq("tenant_id", scope.tenantId).in("id", eventIds)
@@ -239,7 +266,8 @@ export default async function ReceiptPage({ params }: Params) {
         signedIn={signedIn}
         isRefunded={isRefunded}
         createdAtLabel={whenLabel(receipt.order.createdAt, zone, locale)}
-        totalLabel={moneyLabel(receipt.order.totalCents)}
+        totalLabel={feeBreakdown ? feeBreakdown.total : moneyLabel(receipt.order.totalCents)}
+        feeBreakdown={feeBreakdown}
         eventHref={eventHref}
         discountLabel={
           receipt.order.discountCents > 0
