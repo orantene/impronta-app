@@ -16,6 +16,7 @@ import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { checkAiRpm } from "@/lib/rate-limit-kv-ai-rpm";
 import type { KvRateLimitResult } from "@/lib/rate-limit-kv";
 import { logServerError } from "@/lib/server/safe-error";
+import { sumTalentAiSpendCents, type TalentSpendRpcClient } from "@/lib/ai/talent-ai-spend";
 
 /** One talent's share: 6 requests a minute (50 talents can run flat out inside the 300/min) and $5 a month (2.5% of $200). */
 export const HUB_TALENT_AI_SUBCAP = { requestsPerMinute: 6, monthlySpendCents: 500 } as const;
@@ -75,19 +76,11 @@ const defaultDeps: HubTalentSubcapDeps = {
     const { createServiceRoleClient } = await import("@/lib/supabase/admin");
     const admin = createServiceRoleClient();
     if (!admin) return null;
-    const { data, error } = await admin
-      .from("cms_ai_usage_log")
-      .select("context_jsonb")
-      .eq("tenant_id", tenantId)
-      .eq("ok", true)
-      .gte("created_at", monthStartIso)
-      .contains("context_jsonb", { talent_profile_id: talentProfileId })
-      .limit(5000);
-    if (error) {
-      logServerError("hub-talent-subcap/spend", error);
-      return null;
-    }
-    return sumUsageRowsSpendCents((data ?? []) as Array<{ context_jsonb?: { cost_usd?: unknown } | null }>);
+    return sumTalentAiSpendCents(
+      admin as unknown as TalentSpendRpcClient,
+      { talentProfileId, sinceIso: monthStartIso, tenantId },
+      "hub-talent-subcap/spend",
+    );
   },
   checkRpm: checkAiRpm,
 };
