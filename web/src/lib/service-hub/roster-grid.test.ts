@@ -66,3 +66,17 @@ test("wiring: tenant pages only, the widget renders the grid, no checkout in the
   assert.doesNotMatch(grid, /from "@\/lib\/(payments|orders|cart)/);
   assert.doesNotMatch(grid, /startCard|createCheckout|CheckoutSession/);
 });
+
+test("TUL-1471b: an instant entry with its offering links to /book?service=; request entries and missing paths stay enquiries", () => {
+  const instant = item({ bookingType: "instant", offeringId: "e823e3b0-80b0-4c02-9934-54e36a848747", title: "Photo session" });
+  const [book] = rosterGridEntries([instant], "es", "/book/request", "/book");
+  assert.equal(book!.cta, "book");
+  assert.equal(book!.href, "/book?service=e823e3b0-80b0-4c02-9934-54e36a848747");
+  assert.equal(rosterGridEntries([instant], "es", "/w/s/book/request", "/w/s/book")[0]!.href, "/w/s/book?service=e823e3b0-80b0-4c02-9934-54e36a848747");
+  // request entry, an instant entry with no offering, and no /book path: all enquiries
+  assert.equal(rosterGridEntries([item()], "en", "/book/request", "/book")[0]!.cta, "request");
+  assert.equal(rosterGridEntries([item({ bookingType: "instant", offeringId: "" })], "en", "/book/request", "/book")[0]!.cta, "request");
+  const noPath = rosterGridEntries([instant], "en", "/book/request")[0]!;
+  assert.equal(noPath.cta, "request");
+  assert.match(noPath.href, /^\/book\/request\?message=/);
+});
