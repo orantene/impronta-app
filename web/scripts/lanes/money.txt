@@ -1,5 +1,6 @@
 src/app/(workspace)/?tenantSlug?/_data-bridge/overview-board-setup-wave.static.test.ts
 src/app/(workspace)/?tenantSlug?/_data-bridge/sales-by-item.test.ts
+src/app/(workspace)/?tenantSlug?/admin/orders/order-row-detail.test.tsx
 src/app/(workspace)/?tenantSlug?/admin/pos/_projects/projects-mode-model.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/classes-actions-capabilities.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/counter-model.test.ts
