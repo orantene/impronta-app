@@ -126,8 +126,20 @@ function visibleVersion(offer: ClientOfferSummary, offers: readonly ClientOfferS
   return n == null ? "" : String(n);
 }
 
-const PAYMENT_FAILED = new Set(["failed", "payment_failed", "declined", "expired", "void", "voided", "canceled", "cancelled", "refunded"]);
-const PAYMENT_OWED = new Set(["unpaid", "pending", "requires_payment", "processing"]);
+// TUL-919 / bounce-batch-1: `conversation_records.payment_state` is written
+// ONLY by `messaging_sync_record_state` (migration
+// 20261231255000_conversation_record_state.sql) and is DB-constrained to the
+// exact vocabulary in `lib/messaging/lifecycle.ts` PAYMENT_STATES: "none",
+// "requested", "opened", "paid", "failed", "expired", "refunded",
+// "partially_refunded", "unknown". This guard used to check invented strings
+// ("unpaid", "pending", "requires_payment", "processing", "declined", "void",
+// "voided", "canceled") that payment_state never actually takes — so a real
+// never-charged or awaiting-payment booking (payment_state = "none" /
+// "requested" / "opened") fell through BOTH sets and was never blocked,
+// showing "Reservado" / "You're booked" for a booking that was not paid.
+// Mirrors the OWED set `lifecycle.ts` already uses for the same column.
+const PAYMENT_FAILED = new Set(["failed", "expired", "refunded"]);
+const PAYMENT_OWED = new Set(["none", "requested", "opened", "unknown"]);
 
 /** PURE: a payment state that means the booking does not stand (yet). */
 export function paymentBlocksBooked(state: string | null | undefined, payInPerson: boolean): boolean {
