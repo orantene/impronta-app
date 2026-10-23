@@ -107,3 +107,18 @@ test("ClientAuthMethod union and appleFailed keys stay aligned", () => {
   assert.equal(typeof en.public.auth.login.apple, "string");
   assert.equal(typeof es.public.auth.login.apple, "string");
 });
+
+test("TUL-1937: sign-in subtitle names Apple only when the Apple button renders (en + es)", () => {
+  const ui = read("src/components/client-account/ClientAccountButton.tsx");
+  assert.match(
+    ui,
+    /appleSignInEnabled \? "public\.clientAccount\.subtitle" : "public\.clientAccount\.subtitleGoogleOnly"/,
+  );
+  for (const file of ["messages/en.json", "messages/es.json"]) {
+    const ca = JSON.parse(read(file)).public.clientAccount as Record<string, string>;
+    assert.match(ca.subtitle, /Apple/, `${file} subtitle keeps Apple for the flag-on case`);
+    assert.ok(ca.subtitleGoogleOnly, `${file} has subtitleGoogleOnly`);
+    assert.doesNotMatch(ca.subtitleGoogleOnly, /Apple/);
+    assert.doesNotMatch(ca.subtitleGoogleOnly, /—/);
+  }
+});
