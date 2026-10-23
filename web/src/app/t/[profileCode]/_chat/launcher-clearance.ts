@@ -17,4 +17,14 @@ export const GUEST_CHAT_LAUNCHER_GAP_PX = 12;
 export const GUEST_CHAT_LAUNCHER_CLEARANCE_PX =
   GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX + GUEST_CHAT_LAUNCHER_HEIGHT_PX + GUEST_CHAT_LAUNCHER_GAP_PX;
 
-export const GUEST_CHAT_LAUNCHER_CLEARANCE_CSS = `@media (max-width: 480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px));}}`;
+/**
+ * TUL-1174 / TUL-1790: the clearance used to stop at 480px, so a 481-639px
+ * phone/tablet got no reserve and the launcher sat on the last row's links.
+ * The launcher parks (directory) and reserves (profile) below 640px.
+ */
+export const GUEST_CHAT_LAUNCHER_CLEARANCE_MAX_WIDTH_PX = 639;
+
+/** Last-row reserve = launcher clearance + one more gap, so links end clear of the pill. */
+export const GUEST_CHAT_LAUNCHER_LAST_ROW_PAD_CSS = `calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX + GUEST_CHAT_LAUNCHER_GAP_PX}px + env(safe-area-inset-bottom,0px))`;
+
+export const GUEST_CHAT_LAUNCHER_CLEARANCE_CSS = `@media (max-width: ${GUEST_CHAT_LAUNCHER_CLEARANCE_MAX_WIDTH_PX}px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px));}}`;

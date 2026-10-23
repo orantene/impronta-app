@@ -16,6 +16,7 @@ import { DirectoryTypeBar } from "./DirectoryTypeBar";
 import { DirectoryFilters } from "./DirectoryFilters";
 import { DirectoryToolbar } from "./DirectoryToolbar";
 import { computeCaptionNorms } from "@/lib/directory/caption-norms";
+import { GUEST_CHAT_LAUNCHER_LAST_ROW_PAD_CSS } from "@/app/t/[profileCode]/_chat/launcher-clearance";
 import { DirectoryTalentCard } from "./DirectoryTalentCard";
 import { DirectoryTalentRow } from "./DirectoryTalentRow";
 import { MarketingDirectoryMap } from "./MarketingDirectoryMap";
@@ -208,10 +209,10 @@ function DirectoryShellBody({
   const showEmpty = view !== "map" && !isPending && items.length === 0;
 
   return (
-    <MarketingContainer size="wide" className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
+    <MarketingContainer size="wide" className="tulala-dir-shell pb-[calc(8rem+env(safe-area-inset-bottom))]">
       {/* TUL-1174: the same rule shifts the Filtros trigger right of the parked launcher (54px wide at left:16px) so it is never covered at load. */}
       {/* TUL-879: on a phone the 2-up grid puts a save heart under the chat launcher in the right column; park the launcher on the left here. */}
-      <style>{`@media (max-width: 639px){[data-guest-chat-launcher]{left:16px!important;right:auto!important}body:has([data-guest-chat-launcher]) [data-directory-toolbar-lead]{padding-left:calc(54px + max(0px,env(safe-area-inset-left)))}}`}</style>
+      <style>{`@media (max-width: 639px){[data-guest-chat-launcher]{left:16px!important;right:auto!important}body:has([data-guest-chat-launcher]) [data-directory-toolbar-lead]{padding-left:calc(54px + max(0px,env(safe-area-inset-left)))}body:has([data-guest-chat-launcher]) .tulala-dir-shell{padding-bottom:${GUEST_CHAT_LAUNCHER_LAST_ROW_PAD_CSS}}}`}</style>
       <div className="flex flex-col gap-5">
         <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
         <DirectoryTypeBar

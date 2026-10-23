@@ -37,7 +37,7 @@
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
 
-import { GUEST_CHAT_LAUNCHER_CLEARANCE_PX, GUEST_CHAT_LAUNCHER_GAP_PX, GUEST_CHAT_LAUNCHER_HEIGHT_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
+import { GUEST_CHAT_LAUNCHER_CLEARANCE_MAX_WIDTH_PX, GUEST_CHAT_LAUNCHER_CLEARANCE_PX, GUEST_CHAT_LAUNCHER_GAP_PX, GUEST_CHAT_LAUNCHER_HEIGHT_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
 
 /** Consent owns the corner while open; above the chat FAB so Aceptar stays tappable (F2). */
 export const FLOATING_CHROME_CONSENT_Z = 98;
@@ -93,7 +93,7 @@ body:has([data-help-bubble]) ${DEMO_BADGE_SELECTOR}{display:none}
 :root:has(.cb-island){--cb-bar-h:${BAR_RESERVE}}
 @media (min-width:720px){:root:has(.cb-island){--cb-bar-h:0px}:root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:${BAR_RESERVE}}}
 body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom,0px))}
-@media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
+@media (max-width:${GUEST_CHAT_LAUNCHER_CLEARANCE_MAX_WIDTH_PX}px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
 /* TUL-884: the language toast is fixed over the page bottom; reserve its height so the last footer links scroll clear of it. */
 body:has(${LOCALE_SUGGESTION_SELECTOR}){padding-bottom:calc(var(--floating-chrome-bottom) + ${LOCALE_SUGGESTION_RESERVE_PX}px)}
