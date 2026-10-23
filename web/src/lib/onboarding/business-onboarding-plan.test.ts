@@ -66,7 +66,7 @@ test("section presence: every step has non-empty title and description in both l
   }
 });
 
-const arrival = (over: Partial<ArrivalPayload> & { fact?: Partial<ArrivalPayload["fact"]> } = {}): ArrivalPayload => ({
+const arrival = (over: Omit<Partial<ArrivalPayload>, "fact"> & { fact?: Partial<ArrivalPayload["fact"]> } = {}): ArrivalPayload => ({
   variant: "business",
   headlineName: null,
   businessName: "Luna",
