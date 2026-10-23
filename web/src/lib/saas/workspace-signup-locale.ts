@@ -27,3 +27,20 @@ export function workspaceLocaleSettingsForFlow(
   if (locale === "en") return { defaultLocale: "en", supportedLocales: ["en", "es"] };
   return null;
 }
+
+/**
+ * TUL-1993: the new workspace's OWN money, decided the same way its own
+ * language already is — by the /start flow's chosen locale, never a guessed
+ * IP country. This is the same `es` -> MXN convention the rest of the
+ * product already applies to a Spanish signal with no country in hand:
+ * marketing prices (`pickMarketingCurrency`, TUL-864) and the onboarding
+ * essentials flow (`setupCurrency`, TUL-16 b) both start a Spanish flow in
+ * pesos instead of a silent USD. The self-serve `/get-started` provisioner
+ * (`workspace-signup.server.ts`) had no such read at all: every new
+ * `agencies` row left `default_currency` unset and fell through to the
+ * column's own DEFAULT 'USD', so an MXN-context (Spanish) signup landed on a
+ * USD account. `en`, unset, or any other locale (e.g. `fr`) keeps USD.
+ */
+export function signupDefaultCurrency(locale: string | null | undefined): "MXN" | "USD" {
+  return workspaceLocaleSettingsForFlow(locale)?.defaultLocale === "es" ? "MXN" : "USD";
+}

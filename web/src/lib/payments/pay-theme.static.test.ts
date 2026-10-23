@@ -33,3 +33,42 @@ test("paid confirmation wires .ics + Google when the page passes calendar links"
   assert.match(page, /googleCalendarUrl/);
   assert.match(page, /payCalendarEvent/);
 });
+
+/**
+ * TUL-1993 history #3786 (scoped down): the open/pay amount summary gets the
+ * same raised-card surface as the paid confirmation (one shared style
+ * constant, both built from site tokens), and every pricing node that was
+ * there before — the fee note, the service-fee row, the expiry marker — is
+ * still there in the same order, just inside the card. No admin palette, no
+ * reordering, no new payment logic.
+ */
+test("TUL-1993 history #3786: open-state amount summary reuses the paid card's token styling", () => {
+  assert.match(view, /const summaryCardStyle: CSSProperties = \{/);
+  // Both the open-state summary and the paid card now draw from one constant,
+  // so they cannot visually drift apart again.
+  const summaryUses = view.match(/style=\{summaryCardStyle\}/g) ?? [];
+  const summarySpread = view.match(/\.\.\.summaryCardStyle/g) ?? [];
+  assert.equal(summaryUses.length, 1, "open-state summary card");
+  assert.equal(summarySpread.length, 1, "paid card spreads the same style");
+  // The fields inside the open-state card kept their relative order: lines,
+  // then the optional service fee, then the total, then fees/refund note.
+  const openBranch = view.slice(view.indexOf("const serviceFee = Math.max"), view.indexOf("const INK ="));
+  const orderedMarkers = [
+    "<ol className=\"space-y-2\">",
+    "data-service-fee=\"\"",
+    "text-[20px] font-semibold tabular-nums",
+    "data-refund-fees-note=\"\"",
+  ];
+  let cursor = -1;
+  for (const marker of orderedMarkers) {
+    const at = openBranch.indexOf(marker);
+    assert.ok(at > cursor, `${marker} out of order`);
+    cursor = at;
+  }
+  assert.doesNotMatch(summaryCardSlice(view), /\badmin-/);
+});
+
+function summaryCardSlice(src: string): string {
+  const start = src.indexOf("const summaryCardStyle");
+  return src.slice(start, src.indexOf("};", start) + 2);
+}

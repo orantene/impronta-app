@@ -45,7 +45,7 @@ import {
 import { trackSignupCompleted } from "@/lib/analytics/conversion-events";
 import { pickSignupPreset } from "@/lib/words/signup-preset";
 import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
-import { workspaceLocaleSettingsForFlow } from "./workspace-signup-locale";
+import { signupDefaultCurrency, workspaceLocaleSettingsForFlow } from "./workspace-signup-locale";
 import { afterResponse } from "@/lib/server/after-response";
 
 type MarketingLeadRow = {
@@ -690,6 +690,12 @@ export async function provisionWorkspaceFromLead(params: {
       plan_tier: "free",
       talent_seat_limit: PLAN_SEAT_CAPS.free,
       settings: buildSignupSettings(lead, briefIndustry),
+      // TUL-1993: the column's own DEFAULT is 'USD' (usd_only_currency_defaults),
+      // so an MXN-context (Spanish) signup landed on a USD account until this
+      // named it explicitly. Display-only (Business Financials tab order) —
+      // never a Stripe account/customer currency, which is set elsewhere and
+      // not touched here.
+      default_currency: signupDefaultCurrency(params.locale),
     })
     .select("id, slug, display_name")
     .single();
