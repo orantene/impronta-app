@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { translatorFor } from "@/i18n/translator-for";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getSiteUrl } from "@/lib/auth-flow";
 import {
   PRIVACY_CHOICES_EVENT,
@@ -185,8 +186,12 @@ export function AnalyticsConsentBanner({
 
   if (!shown) return null;
 
-  const privacyHref = `${getSiteUrl()}/legal/privacy`;
-  const cookiesHref = `${getSiteUrl()}/legal/cookies`;
+  // TUL-1057: these are built unprefixed, so a Spanish session's "Privacy
+  // choices" / cookies links dropped the `/es` prefix and landed on the
+  // English legal pages. `locale` above already follows the page (root
+  // header, or a talent site's own `data-site-locale` override).
+  const privacyHref = `${getSiteUrl()}${withLocaleHref("/legal/privacy", locale)}`;
+  const cookiesHref = `${getSiteUrl()}${withLocaleHref("/legal/cookies", locale)}`;
 
   if (variant === "notice") {
     return (
