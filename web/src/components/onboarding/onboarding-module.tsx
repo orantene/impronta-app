@@ -628,6 +628,7 @@ export function OnboardingModule({
     body = (
       <ArrivalStep
         t={t}
+        locale={locale}
         arrival={state.arrival}
         planIntent={planIntent}
         busy={state.busy}

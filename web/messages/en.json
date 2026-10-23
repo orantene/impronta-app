@@ -23258,7 +23258,7 @@
   },
   "businessOnboarding": {
     "basics": {
-      "title": "Confirm your business basics",
+      "title": "Confirm the basics for {business}",
       "description": "Name, services and hours confirmed so clients know what you offer."
     },
     "services": {
@@ -23279,7 +23279,7 @@
     },
     "team": {
       "title": "Invite your team",
-      "description": "Add the people who take clients with you. You can do this later."
+      "description": "Add the people who take clients for {business}. You can do this later."
     },
     "payments": {
       "title": "Connect payments",
@@ -23287,11 +23287,13 @@
     },
     "preview": {
       "title": "Preview your page",
-      "description": "See your page the way clients will see it."
+      "description": "Preview {business} the way clients will see it."
     },
     "publish": {
       "title": "Publish your website",
-      "description": "Put your site live and share the link."
-    }
+      "description": "Put {business} live and share the link."
+    },
+    "fallbackName": "your business",
+    "setupHeading": "Set up {business}"
   }
 }
