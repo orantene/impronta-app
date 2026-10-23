@@ -58,6 +58,7 @@ src/lib/ai/resolve-api-keys-env-fallback.test.ts
 src/lib/ai/resolve-location-from-query.test.ts
 src/lib/ai/run-ai-directory-search.test.ts
 src/lib/ai/spend-cents.test.ts
+src/lib/ai/talent-ai-spend.test.ts
 src/lib/ai/writing-helper-trade-words.test.ts
 src/lib/analytics/sanitize-url.test.ts
 src/lib/analytics/scrub-leaks.test.ts
@@ -141,4 +142,3 @@ src/lib/support/ticket-title.test.ts
 src/lib/talent-site/route-verdict.test.ts
 src/lib/talent-site/talent-site-true-404.static.test.ts
 src/lib/text-grey-contrast.static.test.ts
-src/lib/ai/talent-ai-spend.test.ts
