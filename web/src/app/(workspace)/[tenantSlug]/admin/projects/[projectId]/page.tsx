@@ -62,6 +62,8 @@ import { ActivityTab, MoneyTab, OverviewTab, ScopeTab, VisibilityTab } from "./r
 import { MilestonesTab } from "./milestones-tab";
 import { loadConfirmations, type ConfirmationsRead } from "@/lib/projects/assignment-confirmation";
 import { TeamTab } from "./team-tab";
+import { loadProjectHoldsForPage } from "@/lib/projects/project-holds.server";
+import { userHasCapability } from "@/lib/access";
 import { RecordMenu } from "./record-menu";
 import { ApproveVerballyButton } from "./milestone-decisions";
 
@@ -131,11 +133,13 @@ export default async function ProjectRecordPage({
   }
 
   const project = load.project;
-  const [contact, activity, candidates, confirmations] = await Promise.all([
+  const [contact, activity, candidates, confirmations, holds, canStaff] = await Promise.all([
     loadProjectContact(scope.tenantId, project.customerId),
     loadProjectActivity(scope.tenantId, project.id),
     tab === "team" ? loadReplacementCandidates(scope.tenantId, { startsAt: project.startsAt, endsAt: project.endsAt }) : Promise.resolve<Awaited<ReturnType<typeof loadReplacementCandidates>>>({ ok: true, candidates: [] }),
     tab === "team" ? loadConfirmations(scope.tenantId, project.id) : Promise.resolve<ConfirmationsRead>({ ok: false, reason: "no_state" }),
+    tab === "team" ? loadProjectHoldsForPage(scope.tenantId, project.inquiryId) : Promise.resolve([]),
+    tab === "team" ? userHasCapability("agency.roster.edit", scope.tenantId) : Promise.resolve(false),
   ]);
   const money = projectMoney(project);
   const accepted = acceptedAgreement(project);
@@ -350,7 +354,7 @@ export default async function ProjectRecordPage({
       ) : null}
       {tab === "scope" ? <ScopeTab project={project} locale={locale} tenantSlug={tenantSlug} tr={tr} /> : null}
       {tab === "milestones" ? <MilestonesTab project={project} locale={locale} tr={tr} /> : null}
-      {tab === "team" ? <TeamTab project={project} candidates={candidates} confirmations={confirmations} locale={locale} visibilityHref={tabHref("visibility")} conversationHref={project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null} tr={tr} /> : null}
+      {tab === "team" ? <TeamTab project={project} candidates={candidates} confirmations={confirmations} holds={holds} canStaff={canStaff} locale={locale} visibilityHref={tabHref("visibility")} conversationHref={project.inquiryId ? `/${tenantSlug}/admin/messages/${project.inquiryId}` : null} tr={tr} /> : null}
       {tab === "money" ? <MoneyTab project={project} tenantSlug={tenantSlug} locale={locale} tr={tr} /> : null}
       {tab === "activity" ? <ActivityTab project={project} activity={activity} locale={locale} tr={tr} /> : null}
       {tab === "visibility" ? <VisibilityTab tr={tr} /> : null}

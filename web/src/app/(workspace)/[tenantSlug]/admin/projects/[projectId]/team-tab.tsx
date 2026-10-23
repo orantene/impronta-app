@@ -17,6 +17,8 @@ import type { ReplacementCandidatesLoad } from "@/lib/projects/projects-reader";
 import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import { BTN_ROW, BTN_SECONDARY, Card, Pill, SectionTitle, dayLabel } from "../_shared";
 import { TeamRows } from "./team-replace";
+import { StaffingPicker } from "./staffing-picker";
+import type { ProjectHold } from "@/lib/projects/project-holds.server";
 
 type Tr = (key: string) => string;
 
@@ -24,6 +26,8 @@ export function TeamTab({
   project,
   candidates,
   confirmations,
+  holds,
+  canStaff,
   locale,
   visibilityHref,
   conversationHref,
@@ -32,6 +36,8 @@ export function TeamTab({
   project: ProjectRecord;
   candidates: ReplacementCandidatesLoad;
   confirmations: ConfirmationsRead;
+  holds: ProjectHold[] | "unreadable";
+  canStaff: boolean;
   locale: string;
   visibilityHref: string;
   conversationHref: string | null;
@@ -172,6 +178,57 @@ export function TeamTab({
           />
         )}
       </Card>
+      <SectionTitle>{tr("dashboard.projects.team.staffTitle")}</SectionTitle>
+      {project.inquiryId && candidates.ok && holds !== "unreadable" ? (
+        <StaffingPicker
+          bookingId={project.id}
+          candidates={candidates.candidates.map((c) => ({ talentProfileId: c.talentProfileId, name: c.name, availability: c.availability, rating: c.rating }))}
+          assignedIds={project.assignments.map((a) => a.talentProfileId).filter((x): x is string => !!x)}
+          holds={holds.map((h) => ({ id: h.id, talentProfileId: h.talentProfileId }))}
+          canWrite={canStaff}
+          copy={{
+            title: tr("dashboard.projects.team.staffTitle"),
+            hint: tr("dashboard.projects.team.staffHint"),
+            showBusy: tr("dashboard.projects.team.staffShowBusy"),
+            minRating: tr("dashboard.projects.team.staffMinRating"),
+            anyRating: tr("dashboard.projects.team.staffAnyRating"),
+            free: tr("dashboard.projects.team.staffFree"),
+            busy: tr("dashboard.projects.team.staffBusy"),
+            unknown: tr("dashboard.projects.team.staffUnknown"),
+            onJob: tr("dashboard.projects.team.staffOnJob"),
+            held: tr("dashboard.projects.team.staffHeld"),
+            hold: tr("dashboard.projects.team.staffHold"),
+            release: tr("dashboard.projects.team.staffRelease"),
+            none: tr("dashboard.projects.team.replacementNone"),
+            noInquiry: tr("dashboard.projects.scope.noInquiry"),
+            outcomes: {
+              already_assigned: tr("dashboard.projects.team.staffOutAssigned"),
+              already_held: tr("dashboard.projects.team.staffOutHeld"),
+              duplicate: tr("dashboard.projects.team.staffOutHeld"),
+              not_on_roster: tr("dashboard.projects.team.staffOutRoster"),
+              slot_taken: tr("dashboard.projects.team.staffOutTaken"),
+              failed: tr("dashboard.projects.team.staffOutFailed"),
+            },
+            refusals: {
+              not_allowed: tr("dashboard.projects.team.staffNotAllowed"),
+              no_window: tr("dashboard.projects.team.staffNoWindow"),
+              window_past: tr("dashboard.projects.team.staffNoWindow"),
+              unavailable: tr("dashboard.projects.team.staffUnavailable"),
+              not_found: tr("dashboard.projects.team.staffUnavailable"),
+              invalid: tr("dashboard.projects.team.staffUnavailable"),
+              no_inquiry: tr("dashboard.projects.scope.noInquiry"),
+              none_picked: tr("dashboard.projects.team.staffUnavailable"),
+              too_many: tr("dashboard.projects.team.staffUnavailable"),
+            },
+          }}
+        />
+      ) : (
+        <Card>
+          <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted" data-staffing-unavailable>
+            {project.inquiryId ? tr("dashboard.projects.team.staffUnavailable") : tr("dashboard.projects.scope.noInquiry")}
+          </p>
+        </Card>
+      )}
       <p className="m-0 text-[13px]">
         <Link href={visibilityHref} className="text-admin-ink underline underline-offset-4">
           {tr("dashboard.projects.visibility.title")}
