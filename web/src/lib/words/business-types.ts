@@ -110,7 +110,12 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("provisional-service", "agency", "Provisional service profile", "Perfil provisional", []),
   t("immigration-practice", "professional", "Immigration practice", "Gestión migratoria", []),
   t("private-chef", "professional", "Private chef", "Chef privado", ["chef at home", "chef privado"], "private_chef"),
-  t("house-cleaner", "professional", "House cleaner", "Limpieza", ["home cleaning", "limpieza de casas"], "home_services"),
+  // TUL-349 (business path regression): the bare word "cleaning" must win the
+  // generic house-cleaner match, not tie on a lower-relevance compound alias
+  // of an unrelated type ("car cleaning", "office cleaning") and lose the
+  // alphabetical tie-break to it (-> wrong pack -> stock pool falls through
+  // to family/universal, surfacing an unrelated trade's hero photo).
+  t("house-cleaner", "professional", "House cleaner", "Limpieza", ["cleaning", "home cleaning", "limpieza de casas"], "home_services"),
   t("handyman", "professional", "Handyman", "mantenimiento del hogar", ["handyman service", "home repairs", "mantenimiento del hogar"], "home_services"),
   t("translator", "professional", "Translator", "Traductor", ["translation", "traductor"]),
   t("voice-over", "professional", "Voice-over artist", "Locutor", ["voice over"]),

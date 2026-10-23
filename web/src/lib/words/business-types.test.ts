@@ -76,3 +76,17 @@ test("TUL-1161: dentist and doctor words land on the clinic row", () => {
   assert.equal(first("médico"), "clinic");
   assert.equal(first("consultorio"), "clinic");
 });
+
+test("TUL-349 (business path): bare 'cleaning' wins house-cleaner, never a mobile-detailing alias on the alphabetical tie-break", () => {
+  const first = (q: string) => searchBusinessTypes(q)[0]?.id;
+  assert.equal(first("cleaning"), "house-cleaner");
+  assert.equal(first("Cleaning"), "house-cleaner");
+  assert.equal(first("cleaner"), "house-cleaner");
+  assert.equal(first("limpieza"), "house-cleaner");
+  // Neighbouring "cleaning" verticals still get their own, more specific type.
+  assert.equal(first("car cleaning"), "car-detailing");
+  assert.equal(first("car detailing"), "car-detailing");
+  assert.equal(first("office cleaning"), "commercial-cleaning-company");
+  assert.equal(first("garment cleaning"), "dry-cleaning-service");
+  assert.equal(first("dry cleaning"), "dry-cleaning-service");
+});
