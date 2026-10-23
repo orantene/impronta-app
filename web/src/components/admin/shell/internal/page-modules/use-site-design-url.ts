@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import {
   buildEditorPanelUrl,
+  hasBrandedWebsitePrimaryDomain,
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
@@ -29,7 +30,12 @@ export function useSiteDesignUrl(): string | null {
     const windowOrigin = typeof window === "undefined" ? "" : window.location.origin;
     const liveOrigin = resolveWebsiteLiveOrigin(primaryDomain, windowOrigin);
     return buildEditorPanelUrl({
-      editorBaseUrl: resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin, hasPrimaryDomain: Boolean(primaryDomain?.trim()) }),
+      editorBaseUrl: resolveWebsiteEditorBaseUrl({
+        liveOrigin,
+        tenantSlug,
+        windowOrigin,
+        hasPrimaryDomain: hasBrandedWebsitePrimaryDomain(primaryDomain),
+      }),
       panel: "theme",
     });
   }, [primaryDomain, tenantSlug]);
