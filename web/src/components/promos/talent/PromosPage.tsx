@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { PromoCallout, MonthRollup } from "@/components/promos/results";
-import { PromoShareSheet } from "@/components/promos/share/promo-share-sheet";
+import { PromoShareSheet, logShare } from "@/components/promos/share/promo-share-sheet";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -14,6 +14,8 @@ import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { loadPromosPage, type PromoListItem, type PromosPageData } from "@/lib/promos/actions";
 import { promoCopy } from "@/lib/promos/copy/talent";
 import { buildCaption } from "@/lib/promos/share/captions";
+import { buildPromoLink } from "@/lib/promos/share/links";
+import { canUseNativeShare, shareNative } from "@/lib/promos/share/native-share";
 import { groupByTab, type PromoTab } from "@/lib/promos/talent-view";
 import { TEMPLATE_ORDER, buildDraft, type PromoDraft, type TemplateKey } from "@/lib/promos/templates";
 import { PromoCard } from "./PromoCard";
@@ -249,8 +251,19 @@ export function PromosPage() {
         onEdit={openEdit}
         onShare={(it) => {
           // Without a link slug there is nothing to share: say so and keep the detail sheet open instead of silently closing it.
-          if (!it.link_slug) toast(copy.t("page.share_no_link"));
-          else setShareId(it.id);
+          if (!it.link_slug) {
+            toast(copy.t("page.share_no_link"));
+            return;
+          }
+          // Phones: open the native share sheet from this tap. Anything else (or a failure) opens the in-page sheet with Copy link.
+          if (canUseNativeShare()) {
+            const origin = data.siteOrigin ?? window.location.origin;
+            const url = buildPromoLink({ origin, slug: it.link_slug, profileCode: data.siteOrigin ? null : data.profileCode || null, via: "link" });
+            void shareNative({ title: it.name, text: it.name, url }).then((r) => {
+              if (r === "shared") logShare(it.id, "link");
+              else if (r === "failed" || r === "unavailable") setShareId(it.id);
+            });
+          } else setShareId(it.id);
         }}
         onChanged={() => void reload()}
       />

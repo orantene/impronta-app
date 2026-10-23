@@ -21,6 +21,7 @@ src/components/promos/talent/promo-contrast.test.ts
 src/components/promos/talent/promo-switch.test.tsx
 src/components/promos/talent/promos-dashboard-design.static.test.ts
 src/components/promos/talent/promos-drawer.static.test.ts
+src/components/promos/talent/promos-share-mobile.test.ts
 src/components/promos/talent/promos-share-no-link.static.test.ts
 src/components/promos/talent/promos-sheet-overflow.static.test.ts
 src/components/promos/talent/share-visibility-amounts-unchanged.test.ts

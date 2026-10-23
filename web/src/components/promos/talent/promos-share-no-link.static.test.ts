@@ -11,7 +11,8 @@ import { PROMO_COPY_EN, PROMO_COPY_ES } from "@/lib/promos/copy/talent";
 const page = readFileSync(join(__dirname, "PromosPage.tsx"), "utf8");
 
 test("Compartir without a link slug shows a message and does not open the share state", () => {
-  assert.match(page, /if \(!it\.link_slug\) toast\(copy\.t\("page\.share_no_link"\)\);\s*else setShareId\(it\.id\)/);
+  assert.match(page, /if \(!it\.link_slug\) \{\s*toast\(copy\.t\("page\.share_no_link"\)\);\s*return;/);
+  assert.match(page, /else setShareId\(it\.id\)/);
 });
 
 test("share_no_link exists in es and en without em dashes", () => {

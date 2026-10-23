@@ -43,7 +43,7 @@ async function mountSheet(): Promise<HTMLElement> {
       />,
     );
   });
-  return host;
+  return doc.body;
 }
 
 function setClipboard(impl: ((t: string) => Promise<void>) | null): void {
@@ -65,7 +65,10 @@ const status = (h: HTMLElement) => h.querySelector('[role="status"]')?.textConte
 
 test("layer class and readonly 16px link input", async () => {
   const host = await mountSheet();
-  assert.ok((host.firstElementChild as HTMLElement).className.includes(PROMO_SHARE_LAYER));
+  const overlay = host.querySelector('[role="presentation"]') as HTMLElement;
+  assert.ok(overlay.className.includes(PROMO_SHARE_LAYER));
+  assert.equal(overlay.parentElement, doc.body, "portaled to body");
+  assert.equal(overlay.style.pointerEvents, "auto");
   const input = host.querySelector("input[readonly]") as HTMLInputElement;
   assert.ok(input.className.includes("text-[16px]"));
   assert.match(input.value, /^https:\/\/ana\.example\.com\//);
@@ -78,7 +81,7 @@ test("clipboard resolves: full https link copied and Copiado shown", async () =>
   await clickCopy(host);
   assert.equal(copied.length, 1);
   assert.match(copied[0], /^https:\/\/ana\.example\.com\/.*verano/);
-  assert.equal(status(host), "Copiado");
+  assert.equal(status(host), "Enlace copiado");
 });
 
 test("clipboard rejects: manual-copy message and link input stay", async () => {
@@ -102,7 +105,7 @@ test("clipboard absent: execCommand fallback copies", async () => {
   const host = await mountSheet();
   await clickCopy(host);
   assert.equal(called, 1);
-  assert.equal(status(host), "Copiado");
+  assert.equal(status(host), "Enlace copiado");
 });
 
 test("header: short title, one-line subtitle, icon-only close; WhatsApp is the primary link", async () => {
