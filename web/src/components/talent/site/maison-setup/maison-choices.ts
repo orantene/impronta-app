@@ -58,7 +58,8 @@ export function defaultMaisonChoices(): MaisonSetupChoices {
   return {
     screen: "gallery",
     paletteKey: MAISON_DEFAULT_PALETTE_KEY,
-    contentMode: "demo",
+    // W5-8 / TUL-519: gallery copy promises her photos and services.
+    contentMode: "mine",
     previewDevice: "desktop",
     status: "Preview",
     phoneSheet: null,
@@ -116,7 +117,8 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
     typeof o.paletteKey === "string" && isMaisonPaletteKey(o.paletteKey)
       ? o.paletteKey
       : base.paletteKey;
-  const contentMode = o.contentMode === "mine" ? "mine" : "demo";
+  const contentMode =
+    o.contentMode === "demo" ? "demo" : o.contentMode === "mine" ? "mine" : base.contentMode;
   const previewDevice = o.previewDevice === "phone" ? "phone" : "desktop";
   const status: MaisonStatusWord =
     o.status === "Choices saved" ||
