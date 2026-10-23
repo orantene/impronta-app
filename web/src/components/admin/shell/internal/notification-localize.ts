@@ -10,6 +10,7 @@
 
 import { themeUpdateCopy } from "@/lib/talent-site/theme-releases/manager/notify";
 import { translateDashboardText } from "./dashboard-i18n";
+import { localizeRosterNotificationEs } from "./notification-localize-roster";
 
 const DAY_OF_TITLES_ES: Record<string, string> = {
   "Your event is tomorrow": "Tu evento es mañana",
@@ -66,6 +67,8 @@ export function localizeNotificationText(
   const themeUpdate = localizeThemeUpdateText(text, locale);
   if (themeUpdate !== null) return themeUpdate;
   if (!locale.toLowerCase().startsWith("es")) return text;
+  const roster = localizeRosterNotificationEs(text);
+  if (roster !== null) return roster;
   const direct = translateDashboardText(text, locale);
   if (direct !== text) return direct;
   const request = text.match(/^New (.+) request$/u);
