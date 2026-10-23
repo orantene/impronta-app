@@ -7,6 +7,7 @@ import {
   HUB_AGENCY_PREVIEW_LIMIT,
   filterPublicHubAgencies,
   isReservedTestEmail,
+  qaTestEmailDomains,
   isSeedHostname,
   tenantsWithRealOwner,
   visibleHubAgencies,
@@ -124,4 +125,31 @@ test("TUL-1884: owner rule. no owner -> hidden, test-TLD owner -> hidden, flagge
 test("TUL-1884: reserved test TLDs", () => {
   for (const e of ["a@impronta.test", "a@x.example", "a@x.INVALID", "a@foo.localhost"]) assert.equal(isReservedTestEmail(e), true, e);
   for (const e of ["a@gmail.com", "a@example.com", "a@testing.io", "", null, undefined, "nodomain"]) assert.equal(isReservedTestEmail(e), false, String(e));
+});
+
+test("TUL-1884 b10: the QA tester inbox counts as a test owner (both staging cases), the real world does not", () => {
+  const env = {};
+  assert.equal(isReservedTestEmail("tulalaqa+studio@mail.grokbot.com", env), true, "Estudio studio desktop bhqxwc");
+  assert.equal(isReservedTestEmail("tulalaqa+bhktwo@mail.grokbot.com", env), true, "Rosa both desktop bhktwo");
+  assert.equal(isReservedTestEmail("a@sub.mail.grokbot.com", env), true, "subdomains of a listed domain");
+  assert.equal(isReservedTestEmail("a@notmail.grokbot.com.evil.io", env), false);
+  assert.equal(isReservedTestEmail("a@xmail.grokbot.com", env), false, "suffix must be a label boundary");
+  assert.equal(isReservedTestEmail("jane@gmail.com", env), false);
+  const out = tenantsWithRealOwner({
+    ownersByTenant: new Map([["t-estudio", ["u1"]], ["t-rosa", ["u2"]], ["t-real", ["u3"]]]),
+    emailByUser: new Map([["u1", "tulalaqa+studio@mail.grokbot.com"], ["u2", "tulalaqa+bhktwo@mail.grokbot.com"], ["u3", "jane@gmail.com"]]),
+    flaggedUserIds: new Set(),
+  });
+  assert.deepEqual([...out], ["t-real"]);
+});
+
+test("TUL-1884 b10: QA_TEST_EMAIL_DOMAINS overrides the default list; the reserved TLDs always apply", () => {
+  assert.deepEqual(qaTestEmailDomains({}), ["mail.grokbot.com"]);
+  assert.deepEqual(qaTestEmailDomains({ QA_TEST_EMAIL_DOMAINS: "  " }), ["mail.grokbot.com"]);
+  const env = { QA_TEST_EMAIL_DOMAINS: " qa.acme.io, @Other.dev " };
+  assert.deepEqual(qaTestEmailDomains(env), ["qa.acme.io", "other.dev"]);
+  assert.equal(isReservedTestEmail("x@qa.acme.io", env), true);
+  assert.equal(isReservedTestEmail("x@other.dev", env), true);
+  assert.equal(isReservedTestEmail("tulalaqa+a@mail.grokbot.com", env), false, "override replaces the default");
+  assert.equal(isReservedTestEmail("x@impronta.test", env), true, "reserved TLDs are not overridable");
 });
