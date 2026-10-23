@@ -135,7 +135,21 @@ test("TUL-919: Reservado only when the booking stands, not after a failed or unp
   assert.equal(deriveGuestNextStep(base({ records: [rec("paid")] }))?.kind, "booked");
   assert.equal(deriveGuestNextStep(base({ records: [rec(null)] }))?.kind, "booked");
   assert.equal(deriveGuestNextStep(base({ records: [rec("failed")] })), null);
-  assert.equal(deriveGuestNextStep(base({ records: [rec("unpaid")] })), null);
+  // bounce-batch-1: these are the REAL `conversation_records.payment_state`
+  // values `messaging_sync_record_state` writes for a booking that has not
+  // been charged yet (migration 20261231255000_conversation_record_state.sql
+  // / lib/messaging/lifecycle.ts PAYMENT_STATES) — "unpaid" is never one of
+  // them, so a test against that string alone never caught a real unpaid
+  // booking reading as booked.
+  assert.equal(deriveGuestNextStep(base({ records: [rec("none")] })), null);
+  assert.equal(deriveGuestNextStep(base({ records: [rec("requested")] })), null);
+  assert.equal(deriveGuestNextStep(base({ records: [rec("opened")] })), null);
+  assert.equal(deriveGuestNextStep(base({ records: [rec("expired")] })), null);
+  assert.equal(deriveGuestNextStep(base({ records: [rec("unknown")] })), null);
   const inPerson = [{ kind: "booking_confirmed", payload: { payInPerson: true } }];
-  assert.equal(deriveGuestNextStep(base({ records: [rec("unpaid")], messages: inPerson }))?.kind, "booked");
+  assert.equal(deriveGuestNextStep(base({ records: [rec("none")], messages: inPerson }))?.kind, "booked");
+  assert.equal(deriveGuestNextStep(base({ records: [rec("requested")], messages: inPerson }))?.kind, "booked");
+  // A truly failed charge still blocks "booked" even on a pay-in-person visit
+  // (an online attempt was made and declined).
+  assert.equal(deriveGuestNextStep(base({ records: [rec("failed")], messages: inPerson })), null);
 });
