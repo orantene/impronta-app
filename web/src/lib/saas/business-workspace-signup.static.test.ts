@@ -79,6 +79,20 @@ test("provisioning never hands out a paid tier", () => {
   assert.doesNotMatch(source, /plan_tier:\s*"website"/);
 });
 
+test("TUL-1993: the agencies insert sets default_currency from the flow locale, not the column's own USD default", () => {
+  const source = read("lib/saas/workspace-signup.server.ts");
+  assert.match(
+    source,
+    /default_currency:\s*signupDefaultCurrency\(params\.locale\)/,
+    "an MXN-context (Spanish) signup must not fall through to the DB's USD default",
+  );
+  assert.match(
+    source,
+    /import\s*\{[^}]*signupDefaultCurrency[^}]*\}\s*from\s*"\.\/workspace-signup-locale"/,
+    "signupDefaultCurrency must come from the shared locale helper, not a second mapping",
+  );
+});
+
 test("?tier=website opens the form on the business option", () => {
   const source = read("app/(marketing)/get-started/page.tsx");
   assert.match(

@@ -267,43 +267,48 @@ export function CheckoutView(props: CheckoutViewProps) {
       <p className="mt-2 text-[13px]" style={{ color: MUTED }}>
         {t(props.slotKind === "appointment_no_time" ? "public.thread.payByNoTime" : "public.thread.payBy")}
       </p>
-      <ol className="mt-4 space-y-2">
-        {props.lines.map((line, index) => (
-          <li key={`${line.label}-${index}`} className="flex justify-between text-[15px]" style={{ color: INK }}>
-            <span>
-              {line.units} · {line.label}
-            </span>
-            <span className="tabular-nums">
-              {formatDashboardMoneyCents(line.unitCents * line.units, props.currency || null, props.locale ?? "es")}
-            </span>
-          </li>
-        ))}
-      </ol>
-      {showServiceFee ? (
-        <p data-service-fee="" className="mt-3 flex justify-between text-[13px] tabular-nums" style={{ color: MUTED }}>
-          <span>{t("public.thread.fees.client_service_fee")}</span>
-          <span>{formatDashboardMoneyCents(serviceFee, props.currency || null, props.locale ?? "es")}</span>
+      {/* The amount owed is the one fact this page exists for: it gets the same
+          raised-card treatment as the paid confirmation below, instead of
+          sitting as bare text at the same weight as the surrounding notes. */}
+      <div className="mt-4 p-4" style={summaryCardStyle}>
+        <ol className="space-y-2">
+          {props.lines.map((line, index) => (
+            <li key={`${line.label}-${index}`} className="flex justify-between text-[15px]" style={{ color: INK }}>
+              <span>
+                {line.units} · {line.label}
+              </span>
+              <span className="tabular-nums">
+                {formatDashboardMoneyCents(line.unitCents * line.units, props.currency || null, props.locale ?? "es")}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {showServiceFee ? (
+          <p data-service-fee="" className="mt-3 flex justify-between text-[13px] tabular-nums" style={{ color: MUTED }}>
+            <span>{t("public.thread.fees.client_service_fee")}</span>
+            <span>{formatDashboardMoneyCents(serviceFee, props.currency || null, props.locale ?? "es")}</span>
+          </p>
+        ) : null}
+        <p className="mt-3 text-[20px] font-semibold tabular-nums" style={{ color: INK }}>
+          {showServiceFee ? formatDashboardMoneyCents(props.amountCents + serviceFee, props.currency || null, props.locale ?? "es") : total}
         </p>
-      ) : null}
-      <p className="mt-4 text-[20px] font-semibold tabular-nums" style={{ color: INK }}>
-        {showServiceFee ? formatDashboardMoneyCents(props.amountCents + serviceFee, props.currency || null, props.locale ?? "es") : total}
-      </p>
-      {props.feeLines?.length ? (
-        <EngineFeeLines
-          lines={props.feeLines}
-          currency={props.currency}
-          formatMoney={(cents) => formatDashboardMoneyCents(cents, props.currency || null, props.locale ?? "es")}
-          label={(c) => t(`public.thread.fees.${c}`)}
-          nonRefundable={t("public.thread.fees.nonRefundable")}
-          platformFeePct={platformFeePercentLabel(props.feeLines)}
-        />
-      ) : (
-        <p data-refund-fees-note="" className="mt-2 text-[13px]" style={{ color: MUTED }}>
-          {t("public.thread.fees.nonRefundable")}
-        </p>
-      )}
+        {props.feeLines?.length ? (
+          <EngineFeeLines
+            lines={props.feeLines}
+            currency={props.currency}
+            formatMoney={(cents) => formatDashboardMoneyCents(cents, props.currency || null, props.locale ?? "es")}
+            label={(c) => t(`public.thread.fees.${c}`)}
+            nonRefundable={t("public.thread.fees.nonRefundable")}
+            platformFeePct={platformFeePercentLabel(props.feeLines)}
+          />
+        ) : (
+          <p data-refund-fees-note="" className="mt-2 text-[13px]" style={{ color: MUTED }}>
+            {t("public.thread.fees.nonRefundable")}
+          </p>
+        )}
+      </div>
       {props.holdUntil ? (
-        <p className="mt-2 text-[13px]" style={{ color: MUTED }}>
+        <p className="mt-3 text-[13px]" style={{ color: MUTED }}>
           {interpolate(t("public.thread.slotKeptUntil"), { time: props.holdUntil, zone: props.zoneName ?? "UTC" })}
         </p>
       ) : null}
@@ -366,7 +371,16 @@ const secondaryStyle: CSSProperties = {
   color: INK,
   border: `1px solid ${LINE}`,
 };
-const titleStyle: CSSProperties = { fontFamily: HEADING, color: INK };
+const titleStyle: CSSProperties = { fontFamily: HEADING, color: INK, letterSpacing: "-0.01em" };
+// The one raised surface every status branch already uses for the paid
+// confirmation (TUL-437's card); the open/pay state's amount summary reuses
+// it verbatim so the two states read as one visual language, not two.
+const summaryCardStyle: CSSProperties = {
+  borderRadius: RADIUS_LG,
+  border: `1px solid ${LINE}`,
+  background: RAISED,
+  boxShadow: "0 18px 40px -28px rgba(0,0,0,0.18)",
+};
 
 function Action(props: {
   kind: "primary" | "secondary";
@@ -522,10 +536,7 @@ export function PaidView(props: PaidCopy & { secondsLeft: number | null }) {
           {props.sellerLine}
         </p>
       ) : null}
-      <div
-        className="mt-2 p-4"
-        style={{ borderRadius: RADIUS_LG, border: `1px solid ${LINE}`, background: RAISED, color: INK }}
-      >
+      <div className="mt-2 p-4" style={{ ...summaryCardStyle, color: INK }}>
         {props.lines.map((line, i) => (
           <p key={`${line}-${i}`} className="text-[15px]">
             {line}
