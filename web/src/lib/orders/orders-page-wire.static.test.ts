@@ -31,6 +31,16 @@ test("layer 1 — the canonical page file exists and is capability-gated", () =>
  * (phone cards + desktop table + inline refund). The accordion mock mounts
  * only when `?door=preview` sets `doorListProps`. Presence of both paths is
  * not enough — the ternary must put the live list on the falsy branch.
+ *
+ * #2963/#3994 follow-up: the falsy branch's phone-card list, desktop table
+ * and refund form were extracted out of this file into
+ * `order-row-detail.tsx` (`OrdersList`) so a row can expand into an organized
+ * detail panel (Customer / Items and totals / Payment and status / Order
+ * info) without touching the held `?door=preview` mock. The guarantee this
+ * test pins — door mock only behind the flag, the real list still has a
+ * table, a phone list and a reachable refund form — is unchanged; the second
+ * half of it is now checked against `order-row-detail.tsx`, where that markup
+ * actually lives.
  */
 test("TUL-434 — default render is today's live list; door only behind ?door=preview", () => {
   const page = read("src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx");
@@ -44,13 +54,12 @@ test("TUL-434 — default render is today's live list; door only behind ?door=pr
     /const doorListProps = doorPreview\s*\?[\s\S]*?:\s*null/,
     "doorListProps must be null when door is not preview",
   );
-  // Truthy branch mounts the mock (desktop + mobile); falsy branch is today's
-  // list. Nested ternaries inside the else make naive string splits fragile,
-  // so pin the order in one structural match.
+  // Truthy branch mounts the mock (desktop + mobile); falsy branch mounts the
+  // real list (desktop + mobile), never the mock.
   assert.match(
     page,
-    /\{doorListProps \? \([\s\S]*?<OrdersDoorMockList[\s\S]*?<OrdersDoorMockList[\s\S]*?\) : \([\s\S]*?<ul[\s\S]*?<table[\s\S]*?OrdersRefundForm/,
-    "falsy doorListProps must render today's list (ul + table + refund); truthy mounts the mock",
+    /\{doorListProps \? \([\s\S]*?<OrdersDoorMockList[\s\S]*?<OrdersDoorMockList[\s\S]*?\) : \([\s\S]*?<OrdersList[\s\S]*?<OrdersList/,
+    "falsy doorListProps must render the real OrdersList (mobile + desktop); truthy mounts the mock",
   );
   const mockMounts = page.match(/<OrdersDoorMockList/g) ?? [];
   assert.equal(
@@ -71,9 +80,18 @@ test("TUL-434 — default render is today's live list; door only behind ?door=pr
     "both mock mounts live on the preview arm",
   );
   assert.doesNotMatch(afterElse, /OrdersDoorMockList/, "default arm must not mount the door mock");
-  assert.match(afterElse, /<ul/, "default arm keeps the phone card list");
-  assert.match(afterElse, /<table/, "default arm keeps the desktop table");
-  assert.match(afterElse, /OrdersRefundForm/, "default arm keeps the live refund form");
+  assert.equal(
+    (afterElse.match(/<OrdersList\b/g) ?? []).length,
+    2,
+    "default arm mounts the real OrdersList exactly twice (mobile + desktop)",
+  );
+
+  // The real markup (phone list, desktop table, reachable refund form) now
+  // lives in the extracted component, not inline here.
+  const rowDetail = read("src/app/(workspace)/[tenantSlug]/admin/orders/order-row-detail.tsx");
+  assert.match(rowDetail, /<ul/, "the real list keeps the phone card list");
+  assert.match(rowDetail, /<table/, "the real list keeps the desktop table");
+  assert.match(rowDetail, /OrdersRefundForm/, "the real list keeps the live refund form");
 });
 
 test("TUL-434 — phone sheet and inline door split the width with no gap at 390 px", () => {
@@ -124,14 +142,21 @@ test("the loader REFUSES on a read error rather than returning an empty desk", (
 test("Pedidos list polish — channel label, plural lines, dashboard money, nowrap", () => {
   // TUL-435 Done-when: Origen via salesChannelLabel, 1 artículo / 2 artículos,
   // "$1,000 MXN" via formatDashboardMoneyCents, amounts stay on one line.
+  //
+  // #2963/#3994: this markup now lives in `order-row-detail.tsx` (the real
+  // list), not inline in page.tsx — see the TUL-434 test above. page.tsx
+  // keeps formatDashboardMoneyCents for the totals strip.
   const page = read("src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx");
-  assert.match(page, /salesChannelLabel/);
-  assert.match(page, /orderLineItemsLabel/);
-  assert.match(page, /lineCountOne/);
-  assert.match(page, /lineCountOther/);
   assert.match(page, /formatDashboardMoneyCents/);
-  assert.match(page, /whiteSpace:\s*["']nowrap["']/);
-  assert.doesNotMatch(page, /formatOrderMoney/);
+
+  const rowDetail = read("src/app/(workspace)/[tenantSlug]/admin/orders/order-row-detail.tsx");
+  assert.match(rowDetail, /salesChannelLabel/);
+  assert.match(rowDetail, /orderLineItemsLabel/);
+  assert.match(rowDetail, /lineCountOne/);
+  assert.match(rowDetail, /lineCountOther/);
+  assert.match(rowDetail, /formatDashboardMoneyCents/);
+  assert.match(rowDetail, /whiteSpace:\s*["']nowrap["']|tabular-nums/);
+  assert.doesNotMatch(rowDetail, /formatOrderMoney/);
   // Bare `lineCount` noun without singular/plural is the defect.
-  assert.doesNotMatch(page, /\{t\("lineCount"\)\}/);
+  assert.doesNotMatch(rowDetail, /\{copy\.lineCount\}/);
 });
