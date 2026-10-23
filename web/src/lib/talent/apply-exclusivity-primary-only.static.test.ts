@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
-const mig = read("../supabase/migrations/20261231429000_taa_talent_insert_primary_only_exclusivity.sql");
+const mig = read("../supabase/migrations/20261231431500_taa_talent_insert_primary_only_exclusivity.sql");
 const actions = read("src/lib/talent/apply-actions.ts");
 const loaders = read("src/lib/talent/apply-loaders.ts");
 
