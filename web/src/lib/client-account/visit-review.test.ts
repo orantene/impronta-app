@@ -102,7 +102,7 @@ const visitArea = (locale: "en" | "es", visitReview: VisitReviewState | null) =>
           inquiryId: "i1", bookingId: "11111111-1111-4111-8111-111111111111", service: "Haircut", status: "completed", startsAt: "2026-10-10T16:00:00Z",
           eventDate: "2026-10-10", place: null, amountCents: null, currency: "USD", paymentStatus: "paid", paidCents: 0,
           policy: { enforceable: false, insideWindow: false, deadlineIso: null, refundIfCancelled: 0 }, offeringId: null, timeZone: null,
-          canManage: false, payCode: null, canPay: false,
+          canManage: false, payCode: null, payUrl: null, canPay: false,
         },
         visitReview,
       },

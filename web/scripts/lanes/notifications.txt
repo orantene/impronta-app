@@ -151,6 +151,7 @@ src/lib/talent-agenda/money-refund-cta.static.test.ts
 src/lib/talent-agenda/resolve-agenda-pay-booking.test.ts
 src/lib/talent-agenda/send-quote-currency-message.static.test.ts
 src/lib/talent/clients-actions.static.test.ts
+src/lib/talent/collected-month.test.ts
 src/lib/talent/earnings-by-currency.test.ts
 src/lib/talent/earnings-view.test.ts
 src/lib/talent/faq-editor-model.test.ts

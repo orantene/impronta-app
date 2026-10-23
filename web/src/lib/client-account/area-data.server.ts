@@ -1,5 +1,7 @@
 import "server-only";
 
+import { headers } from "next/headers";
+
 import { loadMeData } from "@/lib/me/load-me";
 import { bookingClientFeeLines } from "@/lib/billing/processing-fee-payer";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
@@ -7,12 +9,14 @@ import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
 import { buildClientThread, type ClientThreadRow } from "./client-thread-pure";
 import { talentNamesByUser } from "@/lib/messaging/thread-sender-labels";
+import { paymentLinkPublicUrl } from "@/lib/payments/pay-link-url";
 import { requestNowMs } from "@/lib/projects/request-clock";
 import { bookingOfferingId, loadBookingCancelPolicy, type BookingCancelPolicy } from "@/lib/scheduling/booking-cancel-policy";
 import { refundableCentsFromPolicy } from "@/lib/scheduling/cancel-booking";
 import { parseReservationStamp } from "@/lib/scheduling/reservation-intent";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 
 import { CLOSED_BOOKING_STATUSES, groupVisits, owedCents, pickClientBooking, shapeReceiptLines, type ReceiptLine } from "./area-pure";
 import { loadVisitZones } from "./visit-zones.server";
@@ -76,9 +80,30 @@ export type VisitDetail = {
   timeZone: string | null;
   canManage: boolean;
   payCode: string | null;
+  /**
+   * Absolute checkout URL for `payCode`, on a host that actually serves `/pay`
+   * (TUL-G5 bounce: this page also renders on the app/hub/agency host via
+   * `renderTenantAccountPage`, where a relative `/pay/<code>` 404s — same class
+   * of bug `payLinkTarget` / `resolvePayLinkPublicUrl` already fixed for the
+   * Messages "Pagar ahora" card). Null whenever `payCode` is null.
+   */
+  payUrl: string | null;
   /** Owed, owned and no open link yet: the page offers `payMyBookingForm`. */
   canPay: boolean;
 };
+
+/** Best-effort absolute origin of the current request, for `resolveAgendaPayPublicOrigin`'s "keep it" preference. */
+async function requestedOriginFromHeaders(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (!host) return "";
+    const proto = h.get("x-forwarded-proto") ?? (/^(localhost|127\.0\.0\.1)/.test(host) ? "http" : "https");
+    return `${proto}://${host}`;
+  } catch {
+    return "";
+  }
+}
 
 export async function loadVisitDetail(userId: string, tenantId: string, visitId: string, locale = "en"): Promise<VisitDetail | null> {
   const admin = createServiceRoleClient();
@@ -166,6 +191,13 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
     if (linkErr) logServerError("clientAccount.visit.payLink", linkErr);
     payCode = (link as { code?: string } | null)?.code ?? null;
   }
+  let payUrl: string | null = null;
+  if (payCode) {
+    const requestedOrigin = await requestedOriginFromHeaders();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    const origin = await resolveAgendaPayPublicOrigin(admin as any, tenantId, requestedOrigin);
+    payUrl = paymentLinkPublicUrl(origin, payCode);
+  }
   let requestedService: string | null = null;
   if (!b && stamp) {
     offeringId = stamp.offering_id;
@@ -221,6 +253,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
     // The server action re-checks ownership; this only decides whether to show the buttons.
     canManage: !!b && b.client_user_id === userId && !closed && Number.isFinite(startMs) && startMs > nowMs,
     payCode,
+    payUrl,
     canPay:
       !payCode &&
       !!b?.order_id &&

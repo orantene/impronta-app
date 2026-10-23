@@ -96,3 +96,26 @@ export function collectedForMonth(earnings: TalentEarnings, month: string): Coll
     payments,
   };
 }
+
+/**
+ * QA bounce (no ticket number): the Today "Dinero" card read "Octubre · USD
+ * $0 USD" for a talent whose ACCOUNT currency is MXN. `collectedForMonth`'s
+ * `currency` is the real currency of the money it aggregated — correct for
+ * a month that collected something, but every platform offering prices in
+ * USD, so a talent who set her account to MXN but has only USD bookings on
+ * record gets a USD-stamped bundle (`applyOperatingCurrencyToEarnings` picks
+ * the one bundle she has, since none is in MXN). For a genuine $0 month
+ * there is no "real" currency to show, and labeling it with that stale
+ * bundle currency reads as "your account runs in USD" when it does not.
+ *
+ * DISPLAY ONLY: never changes `cents`/`count`. A month that DID collect
+ * something keeps its real, unchanged currency — only a true $0 month
+ * prefers the talent's own account currency for the label.
+ */
+export function todayMoneyCardCurrency(
+  monthCollected: { cents: number; currency: string } | null,
+  accountCurrency: string | null,
+): string | null {
+  if (monthCollected && monthCollected.cents > 0) return monthCollected.currency;
+  return accountCurrency ?? monthCollected?.currency ?? null;
+}

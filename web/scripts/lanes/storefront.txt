@@ -11,6 +11,7 @@ src/components/admin/shell/internal/page-modules/active-locale-pill.test.ts
 src/components/admin/shell/internal/talent-surface-no-clip.static.test.ts
 src/components/admin/shell/internal/talent/agenda/booking-record-reference.static.test.ts
 src/components/admin/shell/internal/talent/pages/today-setup-card-wrap.static.test.ts
+src/components/client-account/ClientAccountArea.pay-link.render.test.ts
 src/components/edit-chrome/mobile-edit-panel-tablet.static.test.ts
 src/components/edit-chrome/mobile-health-message-es.test.ts
 src/components/edit-chrome/section-display-name-i18n.test.ts

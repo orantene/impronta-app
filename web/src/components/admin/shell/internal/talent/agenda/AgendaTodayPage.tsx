@@ -9,6 +9,7 @@ import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
 import { agendaMoneyRows, awaitingOfferSummary, talentOwedSummary } from "@/lib/talent/money-home";
+import { todayMoneyCardCurrency } from "@/lib/talent/collected-month";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
@@ -153,6 +154,7 @@ export function AgendaTodayPage({
   sitePublished = false,
   siteUrl = null,
   monthCollected = null,
+  accountCurrency = null,
   payoutsEnabled = null,
 }: {
   profile: TalentSelfProfile | null;
@@ -187,6 +189,13 @@ export function AgendaTodayPage({
   siteUrl?: string | null;
   /** Paid this month from the earnings bridge; null when not loaded. */
   monthCollected?: TodayMonthCollected | null;
+  /**
+   * The talent's own account currency (`talent_profiles.default_currency`,
+   * pre-collapse). DISPLAY ONLY — used to label a genuine $0 month instead of
+   * whatever currency `monthCollected` happens to carry (QA bounce, no
+   * ticket number: "Octubre · USD $0 USD" for an MXN talent).
+   */
+  accountCurrency?: string | null;
   payoutsEnabled?: boolean | null;
 }) {
   const copy = useAgendaCopy(), { talentTier } = useAdminShell().state;
@@ -417,7 +426,7 @@ export function AgendaTodayPage({
     );
   };
 
-  const currency = monthCollected?.currency ?? owed.currency ?? null;
+  const currency = todayMoneyCardCurrency(monthCollected, accountCurrency) ?? owed.currency ?? null;
   const monthName = clock.toLocaleDateString(locale, { month: "long" });
   const moneyCard =
     ledgerItems.length > 0 ? (
@@ -439,7 +448,7 @@ export function AgendaTodayPage({
           >
             <Label>{copy.t("Collected")}</Label>
             <div className="text-[22px] font-semibold tabular-nums text-[var(--tc-primary)]">
-              {monthCollected ? formatMoney(monthCollected.cents, monthCollected.currency, locale) : "·"}
+              {monthCollected ? formatMoney(monthCollected.cents, currency ?? monthCollected.currency, locale) : "·"}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
               {!monthCollected
