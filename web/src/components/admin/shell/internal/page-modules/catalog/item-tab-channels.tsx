@@ -5,12 +5,14 @@
  * channel rows with a switch and a price override), then `Policies` as its
  * own tab, and the right column (`Visible on`).
  *
- * TWO SWITCHES ARE THE ENGINE'S: Website (`visibility`: `agency_only` is
- * "staff can sell it, the site does not show it") and POS · Counter
- * (`status`: the counter's `addLine` refuses anything not `published`).
- * Tables, Table QR, the talent profile and a private link have no flag on the
- * row, and a price override no column; each is drawn disabled with its
- * sentence (D-POS-50). Under Policies the identity rule (`requires_identity`
+ * THREE SWITCHES ARE THE ENGINE'S: Website (`visibility`: `agency_only` is
+ * "staff can sell it, the site does not show it"), POS · Counter
+ * (`pos_enabled`, `status`: the counter's `addLine` refuses anything not
+ * `published`) and Table QR (`table_qr_enabled`, TUL-1916: the guest menu lists
+ * only items switched on, once published). Tables, the talent profile and a
+ * private link have no flag on the row, and a price override no column; each is
+ * drawn disabled with its sentence (D-POS-50). Table QR stays disabled until
+ * the column is applied. Under Policies the identity rule (`requires_identity`
  * + its reason) and `require_account_to_book` are wired; returns, refund
  * policy, discountability and comps are not (D-POS-51).
  */
@@ -22,6 +24,7 @@ import { Icon } from "../../primitives";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
 import { posSwitchPatch } from "./catalog-pos-switch";
+import { isTableQrOn, tableQrColumnPresent, tableQrSwitchPatch } from "./catalog-table-qr-switch";
 import { WebsiteControls } from "./WebsiteControls";
 import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
 import { websiteSwitchPatch } from "./catalog-website-switch";
@@ -41,6 +44,7 @@ export function ChannelsTab({ item, patch, saving, editor, isDraft }: TabProps) 
   const onWebsite = item.visibility !== "agency_only";
   const posOn = published && item.posEnabled !== false;
   const reason = t("dashboard.catalog.channels.reason");
+  const tableQrReady = tableQrColumnPresent(editor.items) || typeof item.tableQrEnabled === "boolean";
   const overrideReason = t("dashboard.catalog.channels.overrideReason");
   const placement = item.isFeatured ? t("dashboard.catalog.channels.favorites") : item.category ?? t("dashboard.catalog.channels.allItems");
 
@@ -70,7 +74,16 @@ export function ChannelsTab({ item, patch, saving, editor, isDraft }: TabProps) 
           testId="catalog-channel-pos"
         />
         <ChannelRow name={t("dashboard.catalog.channels.posTables")} note={t("dashboard.catalog.channels.posTablesNote")} on={false} reason={reason} override={t("dashboard.catalog.dash")} overrideLabel={t("dashboard.catalog.channels.priceOverride")} />
-        <ChannelRow name={t("dashboard.catalog.channels.tableQr")} note={t("dashboard.catalog.channels.tableQrNote")} on={false} reason={reason} override={t("dashboard.catalog.dash")} overrideLabel={t("dashboard.catalog.channels.priceOverride")} />
+        <ChannelRow
+          name={t("dashboard.catalog.channels.tableQr")}
+          note={published ? t("dashboard.catalog.channels.tableQrNote") : t("dashboard.catalog.channels.tableQrDraft")}
+          on={isTableQrOn(item)}
+          reason={!tableQrReady ? reason : saving ? t("dashboard.catalog.saving") : null}
+          onChange={tableQrReady ? (next) => patch(tableQrSwitchPatch(item, next, { columnPresent: tableQrReady })) : undefined}
+          override={t("dashboard.catalog.dash")}
+          overrideLabel={t("dashboard.catalog.channels.priceOverride")}
+          testId="catalog-channel-table-qr"
+        />
         <ChannelRow name={t("dashboard.catalog.channels.profile")} note={t("dashboard.catalog.channels.profileNote")} on={false} reason={reason} override={t("dashboard.catalog.dash")} overrideLabel={t("dashboard.catalog.channels.priceOverride")} />
         <ChannelRow name={t("dashboard.catalog.channels.privateLink")} note={t("dashboard.catalog.channels.privateLinkNote")} on={false} reason={reason} override={t("dashboard.catalog.dash")} overrideLabel={t("dashboard.catalog.channels.priceOverride")} />
       </div>
@@ -180,6 +193,8 @@ export function PoliciesTab({ item, patch, saving }: TabProps) {
 }
 
 export function ChannelsSide({ item }: { item: TalentOffering }) {
+  const tableQrOn = isTableQrOn(item);
+  const tableQrKnown = typeof item.tableQrEnabled === "boolean";
   const t = useT();
   const channels = itemChannels(item);
   const placement = item.isFeatured ? t("dashboard.catalog.channels.favorites") : item.category ?? t("dashboard.catalog.channels.allItems");
@@ -191,7 +206,12 @@ export function ChannelsSide({ item }: { item: TalentOffering }) {
       <div className="flex flex-col gap-[8px]" data-testid="catalog-side-visible">
         <VisibleCard on={channels.includes("pos")} name={t("dashboard.catalog.side.counterTile")} value={channels.includes("pos") ? placement : hidden} />
         <VisibleCard on={false} name={t("dashboard.catalog.side.tablesMenu")} value={t("dashboard.catalog.dash")} reason={t("dashboard.catalog.channels.reason")} />
-        <VisibleCard on={false} name={t("dashboard.catalog.channels.tableQr")} value={t("dashboard.catalog.dash")} reason={t("dashboard.catalog.channels.reason")} />
+        <VisibleCard
+          on={tableQrOn}
+          name={t("dashboard.catalog.channels.tableQr")}
+          value={tableQrOn ? placement : tableQrKnown ? hidden : t("dashboard.catalog.dash")}
+          reason={tableQrKnown ? undefined : t("dashboard.catalog.channels.reason")}
+        />
         <VisibleCard
           on={channels.includes("website")}
           name={t("dashboard.catalog.channels.website")}

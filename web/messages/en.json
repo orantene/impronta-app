@@ -18903,6 +18903,7 @@
         "posTablesNote": "Section and course on the tables menu",
         "tableQr": "Table QR (guest ordering)",
         "tableQrNote": "Guests can order it themselves",
+        "tableQrDraft": "Not on the table menu: the item is a draft",
         "profile": "Talent profile",
         "profileNote": "A workspace item is not on a person's profile",
         "privateLink": "Private link",

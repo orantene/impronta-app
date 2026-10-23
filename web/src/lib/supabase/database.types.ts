@@ -19770,6 +19770,7 @@ export type Database = {
           reserve_mode: string
           sort_order: number
           status: string
+          table_qr_enabled: boolean
           talent_profile_id: string | null
           tenant_id: string | null
           title: string
@@ -19813,6 +19814,7 @@ export type Database = {
           reserve_mode?: string
           sort_order?: number
           status?: string
+          table_qr_enabled?: boolean
           talent_profile_id?: string | null
           tenant_id?: string | null
           title: string
@@ -19856,6 +19858,7 @@ export type Database = {
           reserve_mode?: string
           sort_order?: number
           status?: string
+          table_qr_enabled?: boolean
           talent_profile_id?: string | null
           tenant_id?: string | null
           title?: string

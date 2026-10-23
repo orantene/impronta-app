@@ -186,6 +186,8 @@ export type TalentOffering = {
   prepStationId?: string | null;
   /** Sold at the counter (separate from status). undefined = the column is not applied yet. */
   posEnabled?: boolean;
+  /** On the table-QR guest menu (TUL-1916). undefined = the column is not applied yet (then the item shows, as before). */
+  tableQrEnabled?: boolean;
   /** The venue's table-reservation offering: listed in the Catalog, never sold as a dish (TUL-1262). */
   reservation?: boolean;
   sortOrder: number;
@@ -232,6 +234,8 @@ export type TalentOfferingRow = {
   prep_station_id?: string | null;
   /** POS switch, separate from status; absent before the held pos_enabled migration. */
   pos_enabled?: boolean | null;
+  /** Table-QR guest menu switch (TUL-1916); absent before the table_qr_enabled migration. */
+  table_qr_enabled?: boolean | null;
   capacity_pool_id?: string | null;
   consumes_units?: number | null;
   status: string;
@@ -390,6 +394,7 @@ export function rowToOffering(
     isFeatured: row.is_featured === true,
     ...(row.prep_station_id !== undefined ? { prepStationId: row.prep_station_id ?? null } : {}),
     ...(typeof row.pos_enabled === "boolean" ? { posEnabled: row.pos_enabled } : {}),
+    ...(typeof row.table_qr_enabled === "boolean" ? { tableQrEnabled: row.table_qr_enabled } : {}),
     sortOrder: typeof row.sort_order === "number" && Number.isFinite(row.sort_order) ? row.sort_order : 0,
     attributes: row.attributes && typeof row.attributes === "object" ? row.attributes : {},
     imageUrls,
@@ -444,6 +449,7 @@ export function offeringToRowPatch(
     is_featured: o.isFeatured === true,
     ...(o.prepStationId !== undefined ? { prep_station_id: o.prepStationId } : {}),
     ...(typeof o.posEnabled === "boolean" ? { pos_enabled: o.posEnabled } : {}),
+    ...(typeof o.tableQrEnabled === "boolean" ? { table_qr_enabled: o.tableQrEnabled } : {}),
     sort_order: o.sortOrder,
     attributes: o.attributes ?? {},
     title_i18n: nullIfEmpty(i18nPair(o.titleI18n, title, primaryLocale)),

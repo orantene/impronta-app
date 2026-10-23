@@ -6395,6 +6395,7 @@
         "posTablesNote": "Section et service sur le menu des tables",
         "tableQr": "QR de table (commande client)",
         "tableQrNote": "Les clients peuvent le commander eux-mêmes",
+        "tableQrDraft": "Pas dans le menu de table : l'article est un brouillon",
         "profile": "Profil de talent",
         "profileNote": "Un article de l'espace n'est pas sur le profil d'une personne",
         "privateLink": "Lien privé",

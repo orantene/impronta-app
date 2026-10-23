@@ -9,6 +9,8 @@ import { createPaymentLink } from "@/lib/payments/links";
 import { loadOpenVisitByToken } from "./qr";
 import { sortGuestMenu, toGuestMenuItem, type GuestMenuItem, type GuestMenuRow } from "./guest-menu-item";
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
+import { isMissingColumnError } from "@/lib/pos/pos-enabled";
+import { isOnTableQrMenu, TABLE_QR_COLUMN, withTableQrOnly } from "@/lib/offerings/table-qr";
 import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
 import { guestVariantSellable, type GuestMenuOption } from "./guest-menu-options";
@@ -70,27 +72,32 @@ export async function guestVisitMenu(
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
   // D-10: published AND approved AND public; tenant scoping is the .eq below.
-  const [{ data, error }, nonMenu] = await Promise.all([
+  const MENU_COLUMNS =
+    "id, title, description, amount_cents, prep_station_id, status, category, category_i18n, title_i18n, description_i18n, sort_order, inventory_qty, capacity_pool_id";
+  const readMenu = (columns: string) =>
     scopeToGuestSellableOfferings(
       admin
         .from("talent_offerings")
-        .select(
-          "id, title, description, amount_cents, prep_station_id, status, category, category_i18n, title_i18n, description_i18n, sort_order, inventory_qty, capacity_pool_id",
-        )
+        .select(columns)
         .eq("tenant_id", input.tenantId)
         // Workspace menu items only: a roster talent's service is not a dish.
         .eq("owner_kind", "workspace")
         // Sort BEFORE the cap, so the 200 that survive are the owner's first 200.
         .order("sort_order", { ascending: true }),
-    ).limit(200),
-    loadNonMenuOfferingIds(admin, input.tenantId),
-  ]);
+    ).limit(200);
+  // TUL-1916: the QR menu hides items switched off for it. Before the column
+  // exists the read falls back to the old columns and everything stays listed.
+  const [first, nonMenu] = await Promise.all([readMenu(`${MENU_COLUMNS}, ${TABLE_QR_COLUMN}`), loadNonMenuOfferingIds(admin, input.tenantId)]);
+  const { data, error } = first.error && isMissingColumnError(first.error) ? await readMenu(MENU_COLUMNS) : first;
   if (error || nonMenu.error) {
     logServerError("visits.guestVisitMenu", error ?? nonMenu.error);
     return { ok: false, reason: "unavailable" };
   }
   // TUL-1271 item 6: event-backing and reservation offerings are not menu items.
-  const menuRows = withoutNonMenuOfferings(((data ?? []) as unknown as GuestMenuRow[]).map((r) => ({ ...r, id: String(r.id) })), nonMenu.ids);
+  const menuRows = withoutNonMenuOfferings(
+    withTableQrOnly(((data ?? []) as unknown as Array<GuestMenuRow & { table_qr_enabled?: boolean | null }>).map((r) => ({ ...r, id: String(r.id) }))),
+    nonMenu.ids,
+  );
   // TUL-1348: the options (sizes) of each dish. Read per dish id; a failed read
   // hides the whole menu rather than show an option-priced dish at a wrong price.
   const optionsByItem = new Map<string, GuestMenuOption[]>();
@@ -186,16 +193,17 @@ export async function guestVisitAddLine(
   if (visitErr) return { ok: false, reason: "unavailable" };
   const actorUserId = input.actorUserId || String((visitRow as { opened_by?: string } | null)?.opened_by ?? "");
   if (!actorUserId) return { ok: false, reason: "unavailable" };
-  const { data: offering, error } = await admin
-    .from("talent_offerings")
-    .select("id, status, moderation_state, visibility, title, amount_cents, currency")
-    .eq("id", input.offeringId)
-    .eq("tenant_id", input.tenantId)
-    .maybeSingle();
+  const readOffering = (columns: string) =>
+    admin.from("talent_offerings").select(columns).eq("id", input.offeringId).eq("tenant_id", input.tenantId).maybeSingle();
+  const base = "id, status, moderation_state, visibility, title, amount_cents, currency";
+  const firstRead = await readOffering(`${base}, ${TABLE_QR_COLUMN}`);
+  const { data: offering, error } = firstRead.error && isMissingColumnError(firstRead.error) ? await readOffering(base) : firstRead;
   if (error) return { ok: false, reason: "unavailable" };
-  const off = offering as { id: string; status: string; moderation_state?: string; visibility?: string } | null;
+  const off = offering as unknown as { id: string; status: string; moderation_state?: string; visibility?: string; table_qr_enabled?: boolean | null } | null;
   // D-10: an id guessed from another surface must not add an unapproved or hidden service.
   if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
+  // TUL-1916: an item switched off for the table QR cannot be added by a guessed id.
+  if (!isOnTableQrMenu(off)) return { ok: false, reason: "item_unavailable" };
   // TUL-1271 item 6: an event-backing or reservation id is not a menu item either (fails closed).
   if (await anyNonMenuOffering(admin, input.tenantId, [off.id])) return { ok: false, reason: "item_unavailable" };
 
