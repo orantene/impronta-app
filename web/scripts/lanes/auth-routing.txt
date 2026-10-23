@@ -13,6 +13,7 @@ src/app/api/dev/signin/fixture-session.test.ts
 src/app/api/dev/signin/guard.test.ts
 src/app/auth/sign-in-deadlines.static.test.ts
 src/app/client/client-root-loading.static.test.ts
+src/app/onboarding/home/home-locale.static.test.ts
 src/components/auth/age-terms-checkbox.static.test.ts
 src/components/auth/auth-no-inline-copy.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
