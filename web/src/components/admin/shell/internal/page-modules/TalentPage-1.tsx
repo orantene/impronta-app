@@ -110,7 +110,7 @@ export function TalentPage() {
                   }}
                 />
                 {meetsRole(state.role, "admin") && (
-                  <GhostButton onClick={() => openDrawer("team")}>Team</GhostButton>
+                  <GhostButton onClick={() => openDrawer("team")}>{t("admin.roster.list.team")}</GhostButton>
                 )}
                 <GhostButton onClick={() => openDrawer("invite-flow")}>{t("admin.roster.list.invite")}</GhostButton>
                 <PrimaryButton onClick={() => openDrawer("talent-profile-shell", { mode: "create", seed: {} })}>
