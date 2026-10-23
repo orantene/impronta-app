@@ -12,7 +12,11 @@ scripts/demo-talents/foundation.test.ts
 scripts/demo-talents/load-photos.test.ts
 scripts/e2e-web-server-command.test.ts
 scripts/lib/demo-alt-i18n.test.mjs
+scripts/lib/failed-cards-enum-literals.test.mjs
 scripts/lib/failed-cards-fixtures.test.mjs
+scripts/lib/failed-cards-g-fixtures.test.mjs
+scripts/lib/failed-cards-g678-fixtures.test.mjs
+scripts/lib/failed-cards-readback-scope.test.mjs
 scripts/lib/paid-guest-seed.test.mjs
 scripts/lib/staging-only-guard.test.mjs
 scripts/prod-flag-expectations.test.mjs
