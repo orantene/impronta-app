@@ -36,14 +36,17 @@ import {
   loadHomePreference,
   loadOwnedObjects,
 } from "@/lib/tulala/structure-model.server";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
-const ERROR_COPY: Record<string, string> = {
-  unknown: "That isn't one of your dashboards.",
-  unavailable: "You don't have that dashboard yet.",
-  failed: "Couldn't save your choice. Please try again.",
-};
+function errorCopy(code: string | undefined, t: ReturnType<typeof createTranslator>): string | null {
+  if (!code) return null;
+  if (code === "unknown") return t("public.onboarding.home.errorUnknown");
+  if (code === "unavailable") return t("public.onboarding.home.errorUnavailable");
+  return t("public.onboarding.home.errorFailed");
+}
 
 export default async function OnboardingHomePage({
   searchParams,
@@ -68,7 +71,8 @@ export default async function OnboardingHomePage({
   if (homes.length === 1) redirect(HOME_PATH[homes[0] as Home]);
 
   const { error } = await searchParams;
-  const errorMessage = error ? (ERROR_COPY[error] ?? ERROR_COPY.failed) : null;
+  const t = createTranslator(await getRequestLocale());
+  const errorMessage = errorCopy(error, t);
 
   const structure = deriveStructure(owned);
   const workspaces = reachableWorkspaces(owned);
@@ -81,23 +85,25 @@ export default async function OnboardingHomePage({
         className="plt-mono text-center text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
         style={{ color: "var(--plt-forest)" }}
       >
-        Your home
+        {t("public.onboarding.home.eyebrow")}
       </p>
 
       <h1
         className="plt-display mt-2 text-center text-[1.875rem] font-semibold leading-[1.15] tracking-[-0.02em] sm:text-[2.25rem]"
         style={{ color: "var(--plt-ink)" }}
       >
-        Where should we{" "}
-        <span style={{ color: "var(--plt-forest)" }}>start you?</span>
+        {t("public.onboarding.home.titleLead")}{" "}
+        <span style={{ color: "var(--plt-forest)" }}>
+          {t("public.onboarding.home.titleHighlight")}
+        </span>
       </h1>
       <p
         className="mx-auto mt-3 max-w-[400px] text-center text-[0.9375rem] leading-[1.5]"
         style={{ color: "var(--plt-muted)" }}
       >
         {structure === "hybrid"
-          ? "You have both a profile and a workspace. Pick the one to open on sign-in. You keep full access to the other, and you can change this whenever you like."
-          : "Pick the dashboard to open on sign-in. You keep access to the others, and you can change this whenever you like."}
+          ? t("public.onboarding.home.introHybrid")
+          : t("public.onboarding.home.introSingleSurface")}
       </p>
 
       <div
@@ -129,8 +135,9 @@ export default async function OnboardingHomePage({
               <HomeChoice
                 glyph={<WorkspaceGlyph />}
                 title={workspaceName}
-                description="Roster, bookings, payments, and your website."
+                description={t("public.onboarding.home.workspaceDescription")}
                 isCurrent={storedPreference === "workspace"}
+                currentLabel={t("public.onboarding.home.current")}
               />
             </form>
           ) : null}
@@ -140,13 +147,14 @@ export default async function OnboardingHomePage({
               <input type="hidden" name="home" value="talent" />
               <HomeChoice
                 glyph={<TalentGlyph />}
-                title="My profile"
+                title={t("public.onboarding.home.talentProfileTitle")}
                 description={
                   isRepresented(owned)
-                    ? "Your own bookings, calendar, and earnings, including work through the agencies that represent you."
-                    : "Your own bookings, calendar, and earnings."
+                    ? t("public.onboarding.home.talentDescriptionRepresented")
+                    : t("public.onboarding.home.talentDescriptionIndependent")
                 }
                 isCurrent={storedPreference === "talent"}
+                currentLabel={t("public.onboarding.home.current")}
               />
             </form>
           ) : null}
@@ -156,9 +164,10 @@ export default async function OnboardingHomePage({
               <input type="hidden" name="home" value="client" />
               <HomeChoice
                 glyph={<ClientGlyph />}
-                title="Booking dashboard"
-                description="The requests you've sent and the talent you've saved."
+                title={t("public.onboarding.home.clientTitle")}
+                description={t("public.onboarding.home.clientDescription")}
                 isCurrent={storedPreference === "client"}
+                currentLabel={t("public.onboarding.home.current")}
               />
             </form>
           ) : null}
@@ -176,11 +185,13 @@ function HomeChoice({
   title,
   description,
   isCurrent,
+  currentLabel,
 }: {
   glyph: React.ReactNode;
   title: string;
   description: string;
   isCurrent: boolean;
+  currentLabel: string;
 }) {
   return (
     <button
@@ -222,7 +233,7 @@ function HomeChoice({
           className="plt-mono mt-3 shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.14em]"
           style={{ color: "var(--plt-forest)" }}
         >
-          Current
+          {currentLabel}
         </span>
       ) : (
         <span

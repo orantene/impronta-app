@@ -2357,6 +2357,23 @@
         "businessBody": "Agencia, estudio, banda, equipo o solo tú. Crea un espacio de trabajo con tu propio sitio, elenco, reservas y pagos.",
         "staffNote": "Las cuentas del personal las asigna directamente la agencia.",
         "error": "Algo salió mal. Inténtalo de nuevo."
+      },
+      "home": {
+        "eyebrow": "Tu inicio",
+        "titleLead": "¿Por dónde deberíamos",
+        "titleHighlight": "empezar?",
+        "introHybrid": "Tienes un perfil y un espacio de trabajo. Elige cuál abrir al iniciar sesión. Conservas acceso completo al otro, y puedes cambiarlo cuando quieras.",
+        "introSingleSurface": "Elige el panel que se abre al iniciar sesión. Conservas acceso a los demás, y puedes cambiarlo cuando quieras.",
+        "workspaceDescription": "Elenco, reservas, pagos y tu sitio web.",
+        "talentProfileTitle": "Mi perfil",
+        "talentDescriptionRepresented": "Tus propias reservas, calendario y ganancias, incluido el trabajo a través de las agencias que te representan.",
+        "talentDescriptionIndependent": "Tus propias reservas, calendario y ganancias.",
+        "clientTitle": "Panel de reservas",
+        "clientDescription": "Las solicitudes que has enviado y el talento que has guardado.",
+        "current": "Actual",
+        "errorUnknown": "Ese no es uno de tus paneles.",
+        "errorUnavailable": "Aún no tienes ese panel.",
+        "errorFailed": "No se pudo guardar tu elección. Inténtalo de nuevo."
       }
     },
     "consent": {
