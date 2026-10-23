@@ -32,6 +32,7 @@ src/components/admin/shell/internal/messages/shared/w5-3-offer-draft-es.static.t
 src/components/inquiry/inquiry-drawer-refresh-on-close.static.test.ts
 src/components/messages-v5/client/ClientThreadView.sender-1887.render.test.tsx
 src/components/messages-v5/client/client-offer-banner.static.test.ts
+src/components/messages-v5/client/guest-thread-a11y-1103.static.test.ts
 src/components/messages-v5/client/guest-thread-catalog.static.test.ts
 src/components/messages-v5/screens/ThreadCards.render.test.tsx
 src/components/public-booking/catalog-booking-focus-fallback.test.ts

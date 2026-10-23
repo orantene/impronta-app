@@ -130,6 +130,8 @@ export const TP_CSS = `
 [data-ticket-picker] .tp-float:focus-visible{outline:2px solid var(--token-color-ink);outline-offset:3px}
 @media (min-width:1024px){[data-ticket-picker] .tp-float{left:auto;right:24px;bottom:24px;transform:none}[data-ticket-picker] .tp-float[data-yield-chat="1"]{right:96px}}
 @media (prefers-reduced-motion:no-preference){[data-ticket-picker] .tp-float{animation:tp-pop 220ms ease}}
+/* TUL-1803: the open Concierge dock ([data-guest-chat-panel], z 96) shares z 96 with the floating pill and the selection bar; they covered its bubbles and prices at 390. Hide both while it is open. */
+body:has([data-guest-chat-panel]) [data-ticket-picker] .tp-float,body:has([data-guest-chat-panel]) [data-ticket-picker] .tp-bar{display:none}
 @keyframes tp-pop{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 @media (min-width:1024px){@keyframes tp-pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}}
 

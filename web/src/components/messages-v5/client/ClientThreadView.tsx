@@ -112,12 +112,12 @@ export function ClientThreadView(p: ClientThreadViewProps) {
         <header className="cx-top" data-client-header>
           <Avatar name={name || "?"} size="lg" />
           <div className="tx">
-            <b>{name}</b>
+            <h1>{name}</h1>
             <span>{business.handlerFirstName ? fill(copy.header.handling, { name: business.handlerFirstName }) : copy.header.handlingTeam}</span>
           </div>
         </header>
 
-        <main className="cx-st" data-client-stream>
+        <main className="cx-st" data-client-stream aria-live="polite" aria-relevant="additions text">
           {p.fromEmail ? (
             <div data-client-from-email>
               <SystemLine text={copy.stream.backFromEmail} variant="mobile" />
