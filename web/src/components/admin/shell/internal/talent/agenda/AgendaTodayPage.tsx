@@ -12,8 +12,8 @@ import { agendaMoneyRows, awaitingOfferSummary, talentOwedSummary } from "@/lib/
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
-  todayMoneyTilesFromLedger,
   type MoneyLanding,
+  type TodayMoneyTile,
 } from "@/lib/money/today-money-tiles";
 import type { WebsiteSlice, WebsiteSliceKey } from "@/lib/talent/website-eligibility";
 import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
@@ -50,6 +50,8 @@ import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-s
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
 import { ledgerClientsForSummary, owedAmountText } from "@/components/talent/money/ledger-clients-state";
 import { useTalentLedgerClients } from "@/components/talent/money/use-talent-ledger-clients";
+
+const NO_LEDGER_TILES: readonly TodayMoneyTile[] = [];
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
   who: "Your name and what you do",
@@ -204,7 +206,9 @@ export function AgendaTodayPage({
     return () => media.removeEventListener("change", apply);
   }, []);
 
-  const ledgerTiles = useMemo(() => todayMoneyTilesFromLedger(), []);
+  // The September ledger fixture tiles are demo/QA-only and no longer ship in
+  // this bundle (TUL-1178); real talents never saw them, so the block stays empty.
+  const ledgerTiles = NO_LEDGER_TILES;
   const ledgerItems = useMemo(() => {
     if (!onOpenMoney) return [];
     return moneyFromLedger({

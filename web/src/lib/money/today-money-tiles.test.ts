@@ -3,17 +3,16 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { LEDGER_CONTRACT_AGGREGATES } from "./september-ledger-contract";
-import {
-  parseMoneyLanding,
-  serializeMoneyLanding,
-  todayMoneyTilesFromLedger,
-} from "./today-money-tiles";
+import { parseMoneyLanding, serializeMoneyLanding } from "./today-money-tiles";
+import { todayMoneyTilesFromLedger } from "./today-money-tiles.fixture";
 
 // These tests exercise the September FIXTURE tiles, which are demo/QA-only.
-process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE = "1";
 
 describe("Today money tiles (M3)", () => {
   it("amounts match LEDGER-CONTRACT via the Money spine view", () => {
@@ -55,12 +54,9 @@ describe("Today money tiles (M3)", () => {
   });
 });
 
-it("real talents get NO fixture money tiles when the demo flag is off", () => {
-  const prev = process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE;
-  delete process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE;
-  try {
-    assert.deepEqual(todayMoneyTilesFromLedger(), []);
-  } finally {
-    process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE = prev;
-  }
+it("the production tiles module never imports the fixture read model (TUL-1178)", () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "today-money-tiles.ts"), "utf8");
+  assert.doesNotMatch(src, /^import\s+(?!type\b)[^;]*money-spine-view/m);
+  assert.doesNotMatch(src, /september-ledger/);
+  assert.equal(src.includes("todayMoneyTilesFromLedger"), false);
 });

@@ -12,14 +12,27 @@ const here = dirname(fileURLToPath(import.meta.url));
 const moneyDir = join(here, "../../components/talent/money");
 
 describe("Money page M2 spine", () => {
-  it("MoneyPage mounts MoneySpine and M1 subtitle clock", () => {
+  it("MoneyPage is the real earnings page and no client entry imports the fixture spine (TUL-1178)", () => {
     const src = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
-    assert.match(src, /MoneySpine/);
-    assert.match(src, /LEDGER_CONTRACT_CLOCK/);
-    assert.equal(src.includes("CollectMethodsPanel"), false);
-    assert.equal(src.includes("MoneyKpiStrip"), false);
-    assert.equal(src.includes("EarningsLedger"), false);
-    assert.equal(/Leave an agency/i.test(src), false);
+    assert.match(src, /<MoneyHomePage \/>/);
+    assert.doesNotMatch(src, /^import[^;]*(MoneySpine|MoneyBreakdownPanel|money-spine-view|september-ledger)/m);
+    assert.equal(src.includes("process.env"), false);
+    const srcRoot = join(here, "../..");
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(e.name) && !/\.(test|static\.test)\.tsx?$/.test(e.name) && !/\.fixture\.ts$/.test(e.name)) {
+          const text = readFileSync(full, "utf8");
+          if (/from "[^"]*(\/MoneySpine|september-ledger-fixture|today-money-tiles\.fixture)"/.test(text) && !full.includes("/components/talent/money/") && !full.includes("/lib/money/")) {
+            offenders.push(full);
+          }
+        }
+      }
+    };
+    walk(srcRoot);
+    assert.deepEqual(offenders, []);
   });
 
   it("MoneySpine exposes Payments / Outstanding / Payouts tabs and payment detail", () => {
@@ -41,8 +54,6 @@ describe("Money page M2 spine", () => {
   it("AUD-018 routes Request / Record to the booking writer; no fake-success sheets", () => {
     const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
     const detail = readFileSync(join(moneyDir, "PaymentDetailDrawer.tsx"), "utf8");
-    // Record and request route to the booking record's real writer.
-    assert.match(page, /\/talent\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\?collect=1/);
     // Refund / correct / request sheets showed success with no write: they are gone.
     for (const f of ["MoneyRequestPaymentSheet", "MoneyRefundSheet", "MoneyCorrectRecordSheet", "MoneyRecordPaymentSheet"]) {
       assert.equal(existsSync(join(moneyDir, `${f}.tsx`)), false, f);
@@ -69,14 +80,13 @@ describe("Money page M2 spine", () => {
     assert.match(states, /onViewFailedPayout/);
   });
 
-  it("MoneyPage M5 opens breakdown from Payouts View breakdown", () => {
+  it("MoneySpine M5 opens breakdown from Payouts View breakdown (demo module, not mounted by MoneyPage)", () => {
     const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
     const spine = readFileSync(join(moneyDir, "MoneySpine.tsx"), "utf8");
     const payouts = readFileSync(join(moneyDir, "MoneyPayoutsPanel.tsx"), "utf8");
     const breakdown = readFileSync(join(moneyDir, "MoneyBreakdownPanel.tsx"), "utf8");
     const view = readFileSync(join(here, "money-spine-view.ts"), "utf8");
-    assert.match(page, /MoneyBreakdownPanel/);
-    assert.match(page, /onViewBreakdown/);
+    assert.doesNotMatch(page, /MoneyBreakdownPanel/);
     assert.match(spine, /onViewBreakdown/);
     assert.match(payouts, /data-money-view-breakdown/);
     assert.match(payouts, /View breakdown/);
@@ -98,7 +108,7 @@ describe("Today money tiles M3", () => {
       join(here, "../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx"),
       "utf8",
     );
-    assert.match(agenda, /todayMoneyTilesFromLedger/);
+    assert.equal(agenda.includes("todayMoneyTilesFromLedger"), false);
     assert.match(agenda, /moneyFromLedger/);
     assert.match(agenda, /pinMoneyLanding/);
     assert.match(agenda, /onOpenMoney/);
@@ -110,10 +120,9 @@ describe("Today money tiles M3", () => {
 });
 
 describe("Money page never shows fixture figures to real talents", () => {
-  it("MoneyPage renders real earnings unless the demo fixture flag is set", () => {
+  it("MoneyPage renders the real earnings page only", () => {
     const src = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
-    assert.match(src, /NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE === "1"/);
-    assert.match(src, /if \(!SPINE_FIXTURE_ENABLED\) return <MoneyHomePage \/>/);
+    assert.match(src, /return <MoneyHomePage \/>/);
     const earnings = readFileSync(join(moneyDir, "MoneyHomePage.tsx"), "utf8");
     assert.match(earnings, /useResolvedTalentEarningsByCurrency/);
     assert.equal(/septemberLedgerFixture|LEDGER_CONTRACT_CLOCK/.test(earnings), false);
