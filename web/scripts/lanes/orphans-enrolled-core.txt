@@ -15,6 +15,7 @@ scripts/lib/demo-alt-i18n.test.mjs
 scripts/lib/failed-cards-fixtures.test.mjs
 scripts/lib/paid-guest-seed.test.mjs
 scripts/lib/staging-only-guard.test.mjs
+scripts/lib/tul443-stranded-migration.test.mjs
 scripts/prod-flag-expectations.test.mjs
 scripts/qa/mockup-parity/loop-lib.test.mjs
 scripts/qa/mockup-parity/parity.test.mjs
