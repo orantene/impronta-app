@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -32,15 +33,18 @@ export async function OnboardingFooter() {
           © {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {legalLine}
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
+          {/* TUL-1057: these used to be built unprefixed, so a Spanish
+              onboarding session's footer links dropped the `/es` prefix and
+              landed on the English Terms/Privacy pages. */}
           <Link
-            href={`${resolveMarketingOrigin()}/legal/terms`}
+            href={`${resolveMarketingOrigin()}${withLocaleHref("/legal/terms", locale)}`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             {labels.terms}
           </Link>
           <Link
-            href={`${resolveMarketingOrigin()}/legal/privacy`}
+            href={`${resolveMarketingOrigin()}${withLocaleHref("/legal/privacy", locale)}`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >

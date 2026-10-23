@@ -23,13 +23,18 @@ export function countryFromTimeZone(timeZone: string | null | undefined): string
 }
 
 /**
- * TUL-923: the default country is the GUEST's, read in the browser, never an IP
- * country from a server render (a shared cache hands that to every visitor).
- * Order: a browser region other than US ("es-MX" -> MX, "en-GB" -> GB); then the
- * talent's country; then the guest's time zone; then US if the browser said so;
- * then the site language's market. "en-US" is the default region of most English
- * browsers wherever they are, so it must not beat the talent's own country (a
- * Cancun cleaning site defaulted to +1 for everyone).
+ * TUL-923 / TUL-1056: the default country is the GUEST's, read in the browser,
+ * never an IP country from a server render (a shared cache hands that to every
+ * visitor). Order: the talent's/site's own country (`fallbackCountry`, the
+ * platform's one "default by site" signal — see `CatalogBookingSheet`'s
+ * `currency === "MXN" ? "MX" : null`); then a browser region other than US
+ * ("es-MX" -> MX); then the guest's time zone; then US if the browser said so;
+ * then the site language's market. "en-US" is the default region of most
+ * English browsers wherever they are, so it must not beat the talent's own
+ * country (a Cancun cleaning site defaulted to +1 for everyone) — and neither
+ * must any OTHER browser-declared region a guest never chose: `en-GB` is a
+ * common OS/browser default with no bearing on who is actually visiting (a
+ * Cancun site defaulted to +44 for everyone with that locale, TUL-1056).
  */
 export function guestDefaultPhoneIso(input: {
   languages: readonly string[] | null | undefined;
@@ -38,6 +43,7 @@ export function guestDefaultPhoneIso(input: {
   locale: string;
 }): string {
   let browserUs = false;
+  let browserRegion: string | null = null;
   for (const tag of input.languages ?? []) {
     const region = /^[a-z]{2,3}[-_]([A-Za-z]{2})\b/i.exec(tag)?.[1]?.toUpperCase();
     if (!region || !KNOWN.has(region)) continue;
@@ -45,10 +51,11 @@ export function guestDefaultPhoneIso(input: {
       browserUs = true;
       continue;
     }
-    return region;
+    if (!browserRegion) browserRegion = region;
   }
   const fallback = input.fallbackCountry?.toUpperCase();
   if (fallback && KNOWN.has(fallback)) return fallback;
+  if (browserRegion) return browserRegion;
   const tz = countryFromTimeZone(input.timeZone);
   if (tz) return tz;
   if (browserUs) return "US";

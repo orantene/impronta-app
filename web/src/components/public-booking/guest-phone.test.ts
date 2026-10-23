@@ -13,7 +13,6 @@ test("TUL-897: letters and symbols never reach the phone value", () => {
 
 test("TUL-923: the default country comes from the guest's browser, then the talent, never a fixed +1", () => {
   assert.equal(guestDefaultPhoneIso({ languages: ["es-MX", "en-US"], locale: "es" }), "MX");
-  assert.equal(guestDefaultPhoneIso({ languages: ["en-GB"], fallbackCountry: "MX", locale: "en" }), "GB");
   assert.equal(guestDefaultPhoneIso({ languages: ["es"], fallbackCountry: "MX", locale: "es" }), "MX");
   assert.equal(guestDefaultPhoneIso({ languages: ["es"], locale: "es" }), "MX");
   assert.equal(guestDefaultPhoneIso({ languages: [], locale: "en" }), "US");
@@ -23,6 +22,16 @@ test("TUL-923: the default country comes from the guest's browser, then the tale
   assert.equal(guestDefaultPhoneIso({ languages: ["en-US"], timeZone: "America/New_York", locale: "en" }), "US");
   assert.equal(guestDefaultPhoneIso({ languages: ["en-US"], fallbackCountry: "MX", timeZone: "America/New_York", locale: "en" }), "MX");
   assert.equal(guestDefaultPhoneIso({ languages: ["es-419"], fallbackCountry: "CO", locale: "es" }), "CO", "a numeric region is not a country");
+});
+
+test("TUL-1056: a Cancun (MX) site defaults to +52, not the browser's unrelated +44 (en-GB)", () => {
+  // The site's own country now wins over ANY browser-declared region, not
+  // just US: a guest whose browser/OS reports en-GB (a common, meaningless
+  // default) must still see the talent's own MX default, not GB.
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-GB"], fallbackCountry: "MX", locale: "en" }), "MX");
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-GB"], fallbackCountry: "MX", locale: "es" }), "MX");
+  // No site country known: the browser's own region still wins (unchanged).
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-GB"], locale: "en" }), "GB");
 });
 
 test("TUL-923: the stored value is dial + national and splits back", () => {

@@ -18,6 +18,7 @@ src/components/auth/auth-no-inline-copy.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
 src/components/client-account/client-account-help.static.test.ts
+src/components/onboarding/onboarding-footer.static.test.ts
 src/components/onboarding/onboarding-no-inline-copy.static.test.ts
 src/components/onboarding/use-age18-confirmed.test.ts
 src/i18n/auth-page-locale.test.ts
