@@ -36,6 +36,7 @@ import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { loadRegistrationSettings } from "@/lib/saas/registration-settings";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { notifyRosterJoinApproved } from "@/lib/notifications/producers/roster-join-notify";
+import { rosterBlocksApply, type ExclusivityRosterRow } from "@/lib/talent/apply-exclusivity";
 import {
   approveApplicationIntoRoster,
   type ApplicationTable,
@@ -141,21 +142,23 @@ async function commonGate(
 
 async function exclusivityGate(
   talentProfileId: string,
+  targetTenantId: string,
 ): Promise<{ ok: true } | { ok: false; code: "exclusivity_block" | "db_error"; error: string }> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, code: "db_error", error: "Supabase unavailable." };
 
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("id, status, exclusivity_status")
+    .select("tenant_id, is_primary, status, exclusivity_status")
     .eq("talent_profile_id", talentProfileId)
+    .eq("is_primary", true)
     .in("exclusivity_status", ["confirmed", "auto_assigned"])
     .not("status", "in", "(removed,rejected)");
   if (error) {
     logServerError("apply/exclusivity_check", error);
     return { ok: false, code: "db_error", error: error.message };
   }
-  if ((data ?? []).length > 0) {
+  if (rosterBlocksApply((data ?? []) as ExclusivityRosterRow[], targetTenantId)) {
     return {
       ok: false,
       code: "exclusivity_block",
@@ -181,7 +184,7 @@ async function submitApplication(
   const targetGate = await commonGate(kind, targetTenantId);
   if (!targetGate.ok) return targetGate;
 
-  const exclGate = await exclusivityGate(guard.talentProfile.id);
+  const exclGate = await exclusivityGate(guard.talentProfile.id, targetTenantId);
   if (!exclGate.ok) return exclGate;
 
   const supabase = await createSupabaseServerClient();

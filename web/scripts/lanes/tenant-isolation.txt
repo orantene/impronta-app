@@ -234,6 +234,8 @@ src/lib/talent-agenda/resolve-record-target.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts
 src/lib/talent/apply-actions-roster-wire.static.test.ts
+src/lib/talent/apply-exclusivity-primary-only.static.test.ts
+src/lib/talent/apply-exclusivity.test.ts
 src/lib/talent/approve-application.test.ts
 src/lib/talent/hub-profile-offerings.test.ts
 src/lib/talent/invitation-email.test.ts

@@ -50,6 +50,7 @@ async function isTalentExclusive(talentProfileId: string): Promise<boolean> {
     .from("agency_talent_roster")
     .select("id")
     .eq("talent_profile_id", talentProfileId)
+    .eq("is_primary", true)
     .in("exclusivity_status", ["confirmed", "auto_assigned"])
     .not("status", "in", "(removed,rejected)")
     .limit(1);
