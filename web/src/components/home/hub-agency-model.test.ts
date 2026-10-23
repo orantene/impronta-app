@@ -153,3 +153,9 @@ test("TUL-1884 b10: QA_TEST_EMAIL_DOMAINS overrides the default list; the reserv
   assert.equal(isReservedTestEmail("tulalaqa+a@mail.grokbot.com", env), false, "override replaces the default");
   assert.equal(isReservedTestEmail("x@impronta.test", env), true, "reserved TLDs are not overridable");
 });
+
+test("isReservedTestEmail: the QA test domain (default mail.grokbot.com) counts, real domains do not", () => {
+  assert.equal(isReservedTestEmail("bot@mail.grokbot.com"), true);
+  assert.equal(isReservedTestEmail("a@sub.mail.grokbot.com"), true);
+  assert.equal(isReservedTestEmail("a@grokbot.com"), false);
+});
