@@ -24,6 +24,7 @@
 
 import { CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE } from "@/lib/payments/seller-currency-guard";
 import { z } from "zod";
+import { localizedPickerTitle } from "@/lib/sessions/picker-title";
 import { headers } from "next/headers";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -75,6 +76,8 @@ const listSchema = z.object({
 
 const tenantOnlySchema = z.object({
   tenantId: uuidWire,
+  /** TUL-1922: the page locale, so class titles read like /book (title_i18n, base as fallback). */
+  locale: z.string().max(12).optional(),
 });
 
 export type PickerOffering = {
@@ -128,7 +131,7 @@ export async function listSessionPickerOfferings(
     if (offeringIds.length === 0) return { ok: false, reason: "none" };
 
     const { data: offerings, error: offErr } = await scopeToSellableOfferings(
-      tenantScopedQuery(admin, "talent_offerings", tenantId).select("id, title, amount_cents, currency"),
+      tenantScopedQuery(admin, "talent_offerings", tenantId).select("id, title, title_i18n, amount_cents, currency"),
       "guest",
     ).in("id", offeringIds);
     if (offErr) {
@@ -144,7 +147,7 @@ export async function listSessionPickerOfferings(
       if (!o) continue;
       out.push({
         id,
-        title: typeof o.title === "string" && o.title.trim() ? o.title.trim() : "Class",
+        title: localizedPickerTitle(o, parsed.data.locale),
         currency: typeof o.currency === "string" ? o.currency : "",
         amountCents: o.amount_cents == null ? null : Number(o.amount_cents),
       });

@@ -1164,8 +1164,14 @@
       "extraContactAdded": "Added",
       "extraYourInfo": "Your info",
       "avatarStackAria": "Selected talent for your inquiry",
-      "avatarAddedAnnounce": "{name} added to your inquiry. {count} selected.",
-      "avatarRemovedAnnounce": "Removed {name}. {count} selected.",
+      "avatarAddedAnnounce": {
+        "one": "{name} added to your inquiry. 1 talent selected.",
+        "other": "{name} added to your inquiry. {count} talents selected."
+      },
+      "avatarRemovedAnnounce": {
+        "one": "Removed {name}. 1 talent selected.",
+        "other": "Removed {name}. {count} talents selected."
+      },
       "avatarNameFallback": "Talent",
       "avatarShowAllAria": "Show all {count} selected talent",
       "avatarOpenInquiryAria": "{name}, selected. Open inquiry.",
@@ -21534,6 +21540,7 @@
         "invite": "Invite",
         "addTalent": "Add talent",
         "inviteMember": "Invite member",
+        "team": "Team",
         "moreActionsAria": "More actions",
         "exportCsv": "Export CSV",
         "importCsv": "Import CSV",

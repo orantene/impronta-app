@@ -61,3 +61,18 @@ export function formatOrderMoney(cents: number, currency: string): string {
   const isUsd = code === "USD";
   return `${sign}${isUsd ? "$" : ""}${grouped}.${frac}${isUsd ? "" : ` ${code}`}`;
 }
+
+/**
+ * TUL-1922: the same formatter, locale-aware about the bare `$`.
+ *
+ * A bare `$` reads as dollars to an English reader, but on a Spanish page the
+ * reader's default `$` is the peso, so "$25.00" on a receipt is ambiguous. For
+ * a non-English locale USD therefore keeps its symbol AND carries its code
+ * ("$25.00 USD"). Every other case is exactly `formatOrderMoney`.
+ */
+export function formatOrderMoneyForLocale(cents: number, currency: string, locale: string | null | undefined): string {
+  const base = formatOrderMoney(cents, currency);
+  const code = (currency || "USD").toUpperCase();
+  const lang = (locale ?? "en").trim().toLowerCase().slice(0, 2) || "en";
+  return code === "USD" && lang !== "en" ? `${base} USD` : base;
+}

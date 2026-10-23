@@ -12,7 +12,7 @@ import { pickReceipt, receiptBelongsTo } from "@/lib/events/receipt-shape";
 import { signAdmissionToken } from "@/lib/sessions/admission-token";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatOrderMoneyForLocale } from "@/lib/orders/money-format";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { COPY, ReceiptPageView, type ReceiptLocale } from "./receipt-page-view";
@@ -97,7 +97,8 @@ type Receipt = {
 // "ARS 4500.00": no thousands separator, and a hard /100 that is wrong for
 // every zero-decimal currency. It is the surface a CUSTOMER reads at a door,
 // so it was the worst of the three places to disagree.
-const money = formatOrderMoney;
+// TUL-1922: the receipt prints the currency code for USD on a non-English page.
+const money = formatOrderMoneyForLocale;
 
 /**
  * The QR for ONE admission, or null.
@@ -218,7 +219,7 @@ export default async function ReceiptPage({ params }: Params) {
   const locale: ReceiptLocale = rawLocale.toLowerCase().startsWith("es") ? "es" : "en";
   const t = (k: string) => COPY[locale][k] ?? COPY.en[k] ?? k;
   const moneyLabel = (cents: number) =>
-    cents === 0 ? t("free") : money(cents, receipt.order.currency);
+    cents === 0 ? t("free") : money(cents, receipt.order.currency, locale);
 
   const eventIds = [...new Set(receipt.sessions.map((s) => s.eventId).filter((id): id is string => Boolean(id)))];
   const { data: eventRows, error: eventErr } = eventIds.length
@@ -243,7 +244,7 @@ export default async function ReceiptPage({ params }: Params) {
         eventHref={eventHref}
         discountLabel={
           receipt.order.discountCents > 0
-            ? t("discount").replace("{amount}", money(receipt.order.discountCents, receipt.order.currency))
+            ? t("discount").replace("{amount}", money(receipt.order.discountCents, receipt.order.currency, locale))
             : null
         }
         lines={receipt.lines.map((l) => ({
