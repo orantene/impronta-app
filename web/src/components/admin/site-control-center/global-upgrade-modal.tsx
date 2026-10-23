@@ -100,13 +100,17 @@ export function GlobalUpgradeModal({
       : interpolate(t("dashboard.adminShared.planChange.scheduledEnd"), { plan });
   }
 
+  // TUL-1917: the keep picker is the only layer on screen while it is open. The plan sheet is closed first (it was the
+  // layer that covered the picker's "Pasar a Free" button) and comes back when the owner backs out (Escape / Volver).
   function openKeepPicker() {
+    setOpen(false);
     setPicker({ open: true, loading: true, preflight: null });
     void getDowngradePreflight({ target_tier: "free" }).then((r) => {
       if (r.ok) {
         setPicker({ open: true, loading: false, preflight: r.preflight });
       } else {
         setPicker({ open: false, loading: false, preflight: null });
+        setOpen(true);
         toast.error(t("dashboard.adminShared.planChange.keepLoadFailed"));
       }
     });
@@ -134,7 +138,7 @@ export function GlobalUpgradeModal({
   function handleDoorStart(offer: TrialDoorOffer) {
     if (pending) return;
     if (!slug) {
-      toast.error("Couldn't identify workspace.");
+      toast.error(t("dashboard.adminShared.upgradeModal.noWorkspace"));
       return;
     }
     const door = reason?.door;
@@ -167,7 +171,7 @@ export function GlobalUpgradeModal({
       plan === "network"
     ) {
       if (!slug) {
-        toast.error("Couldn't identify workspace.");
+        toast.error(t("dashboard.adminShared.upgradeModal.noWorkspace"));
         return;
       }
       startTransition(async () => {
@@ -225,7 +229,10 @@ export function GlobalUpgradeModal({
       loading={picker.loading}
       pending={pending}
       onConfirm={handleKeepConfirm}
-      onCancel={() => setPicker({ open: false, loading: false, preflight: null })}
+      onCancel={() => {
+        setPicker({ open: false, loading: false, preflight: null });
+        setOpen(true);
+      }}
     />
     </>
   );

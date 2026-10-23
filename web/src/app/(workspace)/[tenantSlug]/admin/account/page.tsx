@@ -7,6 +7,7 @@
 // Capability gate: agency.workspace.view (viewer+). Billing CTAs: manage_billing (admin+).
 
 import { formatPeriodDate } from "@/lib/billing/period-date";
+import { planDisplayNameFor } from "@/lib/access/plan-catalog";
 import { notFound, redirect } from "next/navigation";
 import { verifyCheckoutReturn } from "@/lib/billing/checkout-return";
 import Link from "next/link";
@@ -113,11 +114,7 @@ export default async function WorkspaceAccountPage({
   // Platform-granted plan override (comp / trial) — explains why the plan
   // badge above may differ from any paid subscription.
   const overrideExpiryLabel = overrideBanner?.expiresAt
-    ? new Date(overrideBanner.expiresAt).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+    ? formatPeriodDate(overrideBanner.expiresAt, locale)
     : null;
   const canManagePayout = canManageWorkspacePayout || canManageBilling;
   const canCreateSelfPayout = ["owner", "admin", "manager"].includes(scope.membership.role);
@@ -149,7 +146,7 @@ export default async function WorkspaceAccountPage({
     billingState.status !== "incomplete_expired";
 
   // Format billing period end for display
-  const periodEndLabel = formatPeriodDate(billingState?.currentPeriodEnd, "en");
+  const periodEndLabel = formatPeriodDate(billingState?.currentPeriodEnd, locale);
 
   // TUL-828: /pricing -> /start?plan= -> here. Start the chosen checkout once;
   // the component falls back to this page on any failure.
@@ -342,7 +339,7 @@ export default async function WorkspaceAccountPage({
                       letterSpacing: 0.1,
                     }}
                   >
-                    {planMeta.label}
+                    {summary ? planDisplayNameFor(summary.plan, locale) : planMeta.label}
                   </span>
                   <span style={{ fontSize: 12, color: C.inkMuted }}>
                     {planTagline}
@@ -410,11 +407,7 @@ export default async function WorkspaceAccountPage({
                       <Divider />
                       <DetailRow
                         label={t("admin.account.trialEnds")}
-                        value={new Date(billingState.trialEnd).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
+                        value={formatPeriodDate(billingState.trialEnd, locale) ?? ""}
                       />
                     </>
                   )}

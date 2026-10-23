@@ -7,8 +7,9 @@ import { Check, Minus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/use-t";
-import { interpolate } from "@/i18n/interpolate";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { planDisplayNameFor } from "@/lib/access/plan-catalog";
+import { interpolate } from "@/i18n/interpolate";
 import { formatPeriodDate } from "@/lib/billing/period-date";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { TrialDoorCard, useTrialDoorOffer } from "@/components/billing/trial-door-card";
@@ -21,7 +22,7 @@ import type { UpgradeReason } from "./upgrade-context";
  * UpgradeModal — premium "Choose your plan" dialog.
  *
  * Four tier cards arranged in a grid with a tier-accent header strip,
- * monthly/annual toggle (annual = 2 months free), "Most popular" badge
+ * monthly/annual toggle (annual = 2 months free), popular badge
  * on Studio, and tier-coloured CTAs. Network routes to `mailto:` for
  * sales rather than self-service since it's contract-priced.
  *
@@ -30,15 +31,14 @@ import type { UpgradeReason } from "./upgrade-context";
  * server call directly.
  */
 
-type Feature = { text: string; dim?: boolean };
+/** `id` is the i18n key under dashboard.adminShared.upgradeModal.feature; `cap` fills {cap} where the line has one. */
+type Feature = { id: string; cap?: string; dim?: boolean };
 
 type PlanCard = {
   key: Plan;
-  name: string;
   /** Pricing in whole dollars. Null = custom, sales-led — never show a dollar price. */
   monthly: number | null;
   annual: number | null;
-  tagline: string;
   features: Feature[];
   /** Tier accent colour — drives the top strip + CTA. */
   accent: string;
@@ -46,71 +46,65 @@ type PlanCard = {
   accentFg: string;
 };
 
+const AGENCY_CAP = seatCapLabel("agency", "");
+
 const PLANS: ReadonlyArray<PlanCard> = [
   {
     key: "free",
-    name: "Free",
     monthly: 0,
     annual: 0,
-    tagline: "Start your roster on a Tulala subdomain.",
     features: [
-      { text: `Up to ${seatCapLabel("free")} talents` },
-      { text: "Roster, directory, inquiries" },
-      { text: "Branding & identity" },
-      { text: "tulala.digital subdomain" },
-      { text: "Widgets & API", dim: true },
-      { text: "Custom branded site", dim: true },
+      { id: "freeCap", cap: seatCapLabel("free") },
+      { id: "freeRoster" },
+      { id: "freeBranding" },
+      { id: "freeSubdomain" },
+      { id: "freeWidgets", dim: true },
+      { id: "freeSite", dim: true },
     ],
     accent: "#a1a1aa",
     accentFg: "#0b0b0d",
   },
   {
     key: "studio",
-    name: "Studio",
     monthly: 29,
     annual: 290,
-    tagline: "Embed your roster anywhere — your data layer.",
     features: [
-      { text: `Up to ${seatCapLabel("studio")} talents` },
-      { text: "Widgets (grid, shelf, inquiry form)" },
-      { text: "Read-only public API" },
-      { text: "Tulala subdomain for deep links" },
-      { text: "Everything in Free" },
-      { text: "Custom branded site", dim: true },
+      { id: "studioCap", cap: seatCapLabel("studio") },
+      { id: "studioWidgets" },
+      { id: "studioApi" },
+      { id: "studioSubdomain" },
+      { id: "studioFree" },
+      { id: "studioSite", dim: true },
     ],
     accent: "#3a7bff",
     accentFg: "#ffffff",
   },
   {
     key: "agency",
-    name: "Agency",
     monthly: 79,
     annual: 790,
-    tagline: "Full branded site on your own domain.",
     features: [
-      { text: seatCapLabel("agency", "Unlimited talent") },
-      { text: "Custom domain + branded site" },
-      { text: "Pages, posts, nav, footer" },
-      { text: "Theme library + selective import" },
-      { text: "Widgets + API" },
-      { text: "SEO tooling + redirects" },
+      AGENCY_CAP ? { id: "agencyCap", cap: AGENCY_CAP } : { id: "agencyUnlimited" },
+      { id: "agencyDomain" },
+      { id: "agencyPages" },
+      { id: "agencyThemes" },
+      { id: "agencyWidgets" },
+      { id: "agencySeo" },
     ],
     accent: "#c9a227",
     accentFg: "#0b0b0d",
   },
   {
     key: "network",
-    name: "Network",
     monthly: null,
     annual: null,
-    tagline: "Multi-agency operator with hub publishing.",
     features: [
-      { text: "Unlimited talents" },
-      { text: "Hub publishing — cross-agency" },
-      { text: "Multi-agency manager" },
-      { text: "Priority support" },
-      { text: "Everything in Agency" },
-      { text: "Custom contract available" },
+      { id: "networkTalents" },
+      { id: "networkHub" },
+      { id: "networkMulti" },
+      { id: "networkSupport" },
+      { id: "networkAgency" },
+      { id: "networkContract" },
     ],
     accent: "#146b3a",
     accentFg: "#ffffff",
@@ -180,14 +174,15 @@ export function UpgradeModal({
   const [cycle, setCycle] = React.useState<Cycle>("monthly");
   const t = useT();
   const locale = useDashboardLocale();
+  const U = "dashboard.adminShared.upgradeModal";
+  const planName = (key: Plan) => planDisplayNameFor(key, locale);
   const door = reason?.door ?? null;
   const doorOffer = useTrialDoorOffer(door, open);
   // A door with nothing sellable behind it falls back to the grid below.
   const showDoor = door != null && doorOffer !== null;
 
   const requiredPlan = reason?.requiredPlan ?? null;
-  const requiredPlanName =
-    PLANS.find((p) => p.key === requiredPlan)?.name ?? null;
+  const requiredPlanName = requiredPlan && PLANS.some((p) => p.key === requiredPlan) ? planName(requiredPlan) : null;
   const contextLine =
     reason?.feature && requiredPlanName
       ? interpolate(t("dashboard.adminShared.upgradeReason.needsPlan"), {
@@ -227,20 +222,19 @@ export function UpgradeModal({
           <header className="relative flex flex-col gap-4 border-b border-[rgba(24,24,27,0.06)] bg-white px-7 pb-5 pt-7 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <span className="text-[10.5px] font-bold uppercase tracking-[0.22em] text-[#c9a227]">
-                Plans & billing
+                {t(`${U}.kicker`)}
               </span>
               <Dialog.Title
                 className="mt-1.5 font-display text-[24px] font-semibold tracking-[-0.015em] sm:text-[26px]"
                 style={{ color: "#0b0b0d" }}
               >
-                Choose your plan
+                {t(`${U}.title`)}
               </Dialog.Title>
               <Dialog.Description
                 className="mt-1 text-[13px] leading-[1.5]"
                 style={{ color: "#5b5b62" }}
               >
-                Every plan runs on the same product — higher tiers unlock more
-                cards. Switch or cancel anytime.
+                {t(`${U}.description`)}
               </Dialog.Description>
 
               {/* Contextual framing — which feature was blocked, and by which
@@ -274,7 +268,7 @@ export function UpgradeModal({
               <div
                 className="inline-flex items-center rounded-full border border-[rgba(24,24,27,0.1)] bg-[#f2efe6] p-0.5 text-[12px] font-semibold"
                 role="tablist"
-                aria-label="Billing cycle"
+                aria-label={t(`${U}.cycleLabel`)}
               >
                 <button
                   type="button"
@@ -288,7 +282,7 @@ export function UpgradeModal({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  Monthly
+                  {t(`${U}.monthly`)}
                 </button>
                 <button
                   type="button"
@@ -302,7 +296,7 @@ export function UpgradeModal({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  Annual
+                  {t(`${U}.annual`)}
                   <span
                     className={cn(
                       "inline-flex items-center rounded-full px-1.5 py-[1px] text-[9.5px] font-bold uppercase tracking-[0.1em]",
@@ -311,12 +305,12 @@ export function UpgradeModal({
                         : "bg-[rgba(20,107,58,0.12)] text-[#146b3a]",
                     )}
                   >
-                    −2 months
+                    {t(`${U}.twoMonths`)}
                   </span>
                 </button>
               </div>
               <Dialog.Close
-                aria-label="Close"
+                aria-label={t(`${U}.close`)}
                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-[rgba(24,24,27,0.1)] bg-white text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
               >
                 <X className="size-4" aria-hidden />
@@ -334,23 +328,23 @@ export function UpgradeModal({
                 const isRequired = requiredPlan != null && plan.key === requiredPlan;
                 // The required tier owns the badge slot when a contextual
                 // prompt opened the modal — "Recommended" answers the question
-                // the user just asked; "Most popular" does not.
+                // the user just asked; the popular badge does not.
                 const isPopular = !isRequired && requiredPlan == null && plan.key === "studio";
                 const price =
                   plan.monthly === null
-                    ? "Custom"
+                    ? t(`${U}.custom`)
                     : formatPrice(
                         cycle === "annual" ? (plan.annual ?? 0) : plan.monthly,
                         cycle,
                       );
                 const period =
                   plan.monthly === null
-                    ? "sales-led pricing"
+                    ? t(`${U}.salesLed`)
                     : plan.monthly === 0
-                      ? "forever"
+                      ? t(`${U}.forever`)
                       : cycle === "annual"
-                        ? "/ month, billed yearly"
-                        : "/ month";
+                        ? t(`${U}.perMonthYearly`)
+                        : t(`${U}.perMonth`);
 
                 const freeScheduled = plan.key === "free" && !!scheduledFreeOn;
                 let cta = "";
@@ -358,13 +352,13 @@ export function UpgradeModal({
                   cta = interpolate(t("dashboard.adminShared.planChange.scheduledFree"), {
                     date: formatPeriodDate(scheduledFreeOn, locale) ?? "",
                   });
-                else if (isCurrent) cta = "Current plan";
+                else if (isCurrent) cta = t(`${U}.ctaCurrent`);
                 else if (isUpgrade)
                   cta =
                     plan.key === "network"
-                      ? "Talk to sales"
-                      : `Upgrade to ${plan.name}`;
-                else if (isLower) cta = `Downgrade to ${plan.name}`;
+                      ? t(`${U}.ctaSales`)
+                      : interpolate(t(`${U}.ctaUpgrade`), { plan: planName(plan.key) });
+                else if (isLower) cta = interpolate(t(`${U}.ctaDowngrade`), { plan: planName(plan.key) });
 
                 return (
                   <div
@@ -386,7 +380,7 @@ export function UpgradeModal({
                       style={{ backgroundColor: plan.accent }}
                     />
 
-                    {/* Status badge — Current OR Most popular */}
+                    {/* Status badge — Current OR popular */}
                     {isCurrent ? (
                       <span
                         className="absolute right-3 top-[14px] inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[9.5px] font-bold uppercase tracking-[0.14em]"
@@ -400,7 +394,7 @@ export function UpgradeModal({
                           style={{ backgroundColor: "#c9a227" }}
                           aria-hidden
                         />
-                        Current
+                        {t(`${U}.badgeCurrent`)}
                       </span>
                     ) : isRequired ? (
                       <span
@@ -421,7 +415,7 @@ export function UpgradeModal({
                           backgroundColor: `${plan.accent}1f`,
                         }}
                       >
-                        Most popular
+                        {t(`${U}.badgePopular`)}
                       </span>
                     ) : null}
 
@@ -431,7 +425,7 @@ export function UpgradeModal({
                           className="font-display text-[17px] font-semibold tracking-[-0.005em]"
                           style={{ color: "#0b0b0d" }}
                         >
-                          {plan.name}
+                          {planName(plan.key)}
                         </h3>
                         <div className="mt-2 flex items-baseline gap-1">
                           <span
@@ -451,7 +445,7 @@ export function UpgradeModal({
                           className="mt-2 text-[12.5px] leading-[1.45]"
                           style={{ color: "#5b5b62" }}
                         >
-                          {plan.tagline}
+                          {t(`${U}.tagline.${plan.key}`)}
                         </p>
                       </div>
 
@@ -460,7 +454,7 @@ export function UpgradeModal({
                       <ul className="flex flex-1 flex-col gap-2 text-[12.5px]">
                         {plan.features.map((f) => (
                           <li
-                            key={f.text}
+                            key={f.id}
                             className="flex items-start gap-2 leading-[1.45]"
                             style={{ color: f.dim ? "#9b9ba0" : "#1f1f24" }}
                           >
@@ -476,7 +470,7 @@ export function UpgradeModal({
                                 aria-hidden
                               />
                             )}
-                            <span>{f.text}</span>
+                            <span>{interpolate(t(`${U}.feature.${f.id}`), { cap: f.cap ?? "" })}</span>
                           </li>
                         ))}
                       </ul>
@@ -535,15 +529,13 @@ export function UpgradeModal({
 
             {/* Footnote */}
             <p className="mt-5 text-center text-[11.5px] leading-[1.5] text-muted-foreground">
-              Plans switch on the next billing cycle. VAT calculated at
-              checkout. Need something custom?{" "}
+              {t(`${U}.footnote`)}{" "}
               <a
                 href={`mailto:${SUPPORT_EMAIL}`}
                 className="font-semibold text-foreground underline-offset-2 hover:underline"
               >
-                Talk to us
+                {t(`${U}.talkToUs`)}
               </a>
-              .
             </p>
           </div>
         </Dialog.Content>

@@ -11,6 +11,8 @@ import {
   formatTalentUsage,
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { planDisplayNameFor } from "@/lib/access/plan-catalog";
 import { TIER_DOT, TIER_LABEL, TIER_RENEW_KEY } from "@/lib/admin/plan-tiers";
 
 /**
@@ -79,9 +81,10 @@ export function PlanDrawerBody() {
   const t = useT();
   const upgradeModal = useUpgradeModal();
   const workspace = useAdminWorkspace();
+  const locale = useDashboardLocale();
 
   const planKey = workspace?.plan ?? "free";
-  const planLabel = TIER_LABEL[planKey] ?? "Free";
+  const planLabel = TIER_LABEL[planKey] ? planDisplayNameFor(planKey, locale) : "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
   const planUsage = workspace
     ? interpolate(t("dashboard.adminAccount.plan.usage"), {

@@ -2,6 +2,7 @@
 
 import { PrimaryButton, SecondaryButton } from "../../../primitives";
 import type { AgendaNowAction } from "../types";
+import { useAgendaCopy } from "../use-agenda-copy";
 
 const TONE_CLASSNAME = {
   neutral: "border-[rgba(11,11,13,0.10)] bg-white",
@@ -24,12 +25,13 @@ export function NowBox({
   primaryAction?: AgendaNowAction;
   secondaryAction?: AgendaNowAction;
 }) {
+  const copy = useAgendaCopy();
   return (
     <section
       className={`rounded-[18px] border px-4 py-4 ${TONE_CLASSNAME[tone]}`}
     >
       <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--tc-accent)]">
-        Now
+        {copy.t("Now")}
       </div>
       <h3 className="mt-1 text-[16px] font-semibold text-[var(--tc-primary)]">
         {title}
