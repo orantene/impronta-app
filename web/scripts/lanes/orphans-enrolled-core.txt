@@ -72,6 +72,7 @@ src/components/admin/shell/internal/page-modules/catalog/catalog-website-switch.
 src/components/admin/shell/internal/page-modules/design-hub-copy.static.test.ts
 src/components/admin/shell/internal/page-modules/live3-01-mi-sitio-first-load.static.test.ts
 src/components/admin/shell/internal/page-modules/mobile-more-breakpoint.static.test.ts
+src/components/admin/shell/internal/page-modules/talent-page-toolbar-team-i18n.static.test.ts
 src/components/admin/shell/internal/page-modules/upgrade-celebration-gate.test.ts
 src/components/admin/shell/internal/page-modules/work-style-nav.static.test.ts
 src/components/admin/shell/internal/palette-help-key.static.test.ts
