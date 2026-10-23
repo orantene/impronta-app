@@ -49,7 +49,19 @@ const GUEST_HEADER = "x-impronta-guest";
 export type ContactInquiryState =
   | { status: "idle" }
   | { status: "error"; error: string }
-  | { status: "success"; email: string | null };
+  | {
+      status: "success";
+      email: string | null;
+      /**
+       * TUL-1994/1191: the `ensureGuestClientByEmail` provisioning result,
+       * passed through so the success panel can offer the same client-signup
+       * entry point the inquiry drawer shows a guest — this form runs the
+       * exact same canonical guest inquiry path and used to drop the result
+       * on the floor, leaving a /contact guest with no way back into their
+       * conversation and no path to create an account.
+       */
+      guestActivation: "matched" | "created" | "unlinked" | null;
+    };
 
 export async function submitContactInquiry(
   _prev: ContactInquiryState,
@@ -83,7 +95,7 @@ export async function submitContactInquiry(
       "contact/submitContactInquiry/honeypot",
       new Error(`Honeypot tripped: ${honeypot.slice(0, 40)}`),
     );
-    return { status: "success", email: null };
+    return { status: "success", email: null, guestActivation: null };
   }
 
   const contact_name = String(formData.get("contact_name") ?? "").trim();
@@ -187,5 +199,9 @@ export async function submitContactInquiry(
   });
 
   revalidatePath("/contact");
-  return { status: "success", email: contact_email.toLowerCase() };
+  return {
+    status: "success",
+    email: contact_email.toLowerCase(),
+    guestActivation: guestClient.status,
+  };
 }

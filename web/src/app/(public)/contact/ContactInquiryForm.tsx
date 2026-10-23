@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { GuestActivationCard } from "@/components/inquiry/GuestActivationCard";
 
 type ContactFormCopy = {
   nameLabel: string;
@@ -61,6 +62,14 @@ export function ContactInquiryForm({ copy, defaultMessage }: { copy: ContactForm
             ? copy.successBodyWithEmail.replace("{email}", state.email)
             : copy.successBody}
         </p>
+        {/* TUL-1994/1191: a guest who wrote in here has the same way back into
+            their conversation and into a real client account as the inquiry
+            drawer offers — reused, not rebuilt (GuestActivationCard). */}
+        {state.guestActivation ? (
+          <div className="mt-4">
+            <GuestActivationCard activation={state.guestActivation} email={state.email} />
+          </div>
+        ) : null}
         <Button
           variant="ghost"
           className="mt-6 px-0 text-muted-foreground hover:text-foreground"

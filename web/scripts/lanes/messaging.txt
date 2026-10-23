@@ -29,6 +29,7 @@ src/app/t/*/_chat/use-live-reply-cue.test.ts
 src/app/t/[profileCode]/_chat/tray-send-action.test.ts
 src/components/admin/shell/internal/messages/shared/offer-local-snapshot.test.ts
 src/components/admin/shell/internal/messages/shared/w5-3-offer-draft-es.static.test.ts
+src/components/inquiry/GuestActivationCard.render.test.tsx
 src/components/inquiry/inquiry-drawer-refresh-on-close.static.test.ts
 src/components/messages-v5/client/ClientThreadView.sender-1887.render.test.tsx
 src/components/messages-v5/client/client-offer-banner.static.test.ts
