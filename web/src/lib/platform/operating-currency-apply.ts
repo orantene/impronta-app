@@ -37,7 +37,15 @@ export function applyOperatingCurrencyToEarnings(
   if (preferred) {
     const code = preferred.totals.currency.toUpperCase();
     return {
-      defaultCurrency: code,
+      // QA bounce (no ticket number): keep the talent's OWN declared currency
+      // here even when no bundle of that code exists yet (e.g. an MXN talent
+      // whose only earnings on record are USD, since every offering prices
+      // in USD). `byCurrency[0].totals.currency` (still `code`, unchanged)
+      // stays the REAL currency of that money; this field is read
+      // separately, by a zero-collected month, as the talent's account
+      // currency label — it must never silently become whatever currency
+      // the one bundle on hand happens to be.
+      defaultCurrency: talentDefault,
       byCurrency: [preferred],
       currencies: [code],
       loadError: ec.loadError ?? null,

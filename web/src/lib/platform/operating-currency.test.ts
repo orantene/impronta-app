@@ -49,6 +49,30 @@ describe("A4 applyOperatingCurrencyToEarnings", () => {
     assert.equal(out.byCurrency[0]?.totals.ytdNetCents, 0);
   });
 
+  it("QA bounce (no ticket number): keeps the talent's declared MXN as defaultCurrency even when her only earnings bundle is USD (every offering prices in USD) — never silently becomes USD", () => {
+    const mxnPreferenceOnlyUsdEarnings: TalentEarningsByCurrency = {
+      defaultCurrency: "MXN",
+      currencies: ["USD"],
+      byCurrency: [
+        {
+          ...EMPTY_TALENT_EARNINGS,
+          totals: { ...EMPTY_TALENT_EARNINGS.totals, currency: "USD", ytdNetCents: 50_000 },
+        },
+      ],
+    };
+    const out = applyOperatingCurrencyToEarnings(mxnPreferenceOnlyUsdEarnings, {
+      operatingCurrency: "USD",
+      multiCurrencyDisplayEnabled: false,
+    });
+    // The real money on hand stays labeled USD (it genuinely is USD) …
+    assert.equal(out.byCurrency[0]?.totals.currency, "USD");
+    assert.equal(out.byCurrency[0]?.totals.ytdNetCents, 50_000);
+    // … but the talent's OWN account currency, read separately downstream
+    // (a $0 month's label), must stay her real preference, not get
+    // silently overwritten with whatever the one bundle on hand happens to be.
+    assert.equal(out.defaultCurrency, "MXN");
+  });
+
   it("passes through when multi-currency display is on", () => {
     const multi: TalentEarningsByCurrency = {
       defaultCurrency: "MXN",

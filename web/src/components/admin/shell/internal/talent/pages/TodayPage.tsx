@@ -58,6 +58,7 @@ export function TalentTodayPage() {
     bridgeTalentAgendaV2,
     bridgeTalentPageAnalytics,
     bridgeTalentEarnings,
+    bridgeTalentEarningsByCurrency,
     bridgeTalentPayoutSnapshot,
     bridgeTalentRepresentation,
     bridgeTalentChecklistDismissed,
@@ -184,6 +185,11 @@ export function TalentTodayPage() {
           const ptm = computePaidThisMonth(bridgeTalentEarnings);
           return { cents: ptm.totalCents, count: ptm.count, currency: ptm.currency };
         })()}
+        // QA bounce (no ticket number): "Octubre · USD $0 USD" for an MXN
+        // talent — the talent's OWN declared currency, pre-collapse, for the
+        // $0-month label (see `todayMoneyCardCurrency`), never the bundle
+        // `monthCollected` happens to carry.
+        accountCurrency={bridgeTalentEarningsByCurrency?.defaultCurrency ?? null}
         payoutsEnabled={
           bridgeTalentPayoutSnapshot?.ok === true ? bridgeTalentPayoutSnapshot.data.payoutsEnabled : null
         }

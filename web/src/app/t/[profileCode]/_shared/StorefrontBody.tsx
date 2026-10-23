@@ -18,6 +18,7 @@ import { durationLabel } from "@/lib/talent/duration-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { pauseBannerCopy } from "@/lib/talent/accepting-readiness";
+import { effectiveCatalogColumns } from "@/lib/site-admin/builder-node/services-catalog-columns";
 
 const GROUP_ORDER: OfferingKind[] = ["service", "package", "product"];
 const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
@@ -25,6 +26,24 @@ const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
   package: { en: "Packages", es: "Paquetes" },
   product: { en: "Shop", es: "Tienda" },
 };
+
+/**
+ * QA bounce (history "#3909"): a package/product grid fixed at its usual
+ * column count (`wanted`) left a half-width card beside a large empty cell
+ * whenever the group had fewer items than that — most visibly with exactly
+ * one. Same bug TUL-848 fixed for the builder's `services_catalog` grid
+ * (`effectiveCatalogColumns`); this group's grid never got that fix. Caps
+ * each breakpoint's column count at the real item count, so one card always
+ * takes the full row instead of sitting in one column of an otherwise-empty
+ * grid. Pure — a Tailwind class string, no layout math at render time.
+ */
+export function storefrontGridClass(wantedByBreakpoint: Record<"base" | "sm", number>, itemCount: number): string {
+  const base = effectiveCatalogColumns(wantedByBreakpoint.base, itemCount);
+  const sm = effectiveCatalogColumns(wantedByBreakpoint.sm, itemCount);
+  const classes = ["grid", "gap-3", `grid-cols-${base}`];
+  if (sm !== base) classes.push(`sm:grid-cols-${sm}`);
+  return classes.join(" ");
+}
 
 /**
  * "≈ US$51" under a price in another currency (owner ruling 2026-09-23). Only
@@ -306,13 +325,13 @@ export function StorefrontBody({
               ))}
             </div>
           ) : g.kind === "package" ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={storefrontGridClass({ base: 1, sm: 2 }, g.items.length)}>
               {g.items.map((it) => (
                 <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} ownerBookHref={ownerBookHrefs?.[it.id]} />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className={storefrontGridClass({ base: 2, sm: 3 }, g.items.length)}>
               {g.items.map((it) => (
                 <ProductTile key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} ownerBookHref={ownerBookHrefs?.[it.id]} />
               ))}

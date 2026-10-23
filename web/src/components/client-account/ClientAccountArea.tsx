@@ -241,7 +241,7 @@ export function ClientAccountArea(props: Props) {
             </Link>
           </p>
         ) : null}
-        {v.payCode ? <p style={{ marginTop: 16 }}><a href={`/pay/${encodeURIComponent(v.payCode)}`} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("payNow")}</a></p> : null}
+        {v.payUrl ? <p style={{ marginTop: 16 }}><a href={v.payUrl} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("payNow")}</a></p> : null}
         {v.canPay && v.bookingId ? (
           <form action={payMyBookingForm} style={{ marginTop: 16 }}>
             <input type="hidden" name="bookingId" value={v.bookingId} />
