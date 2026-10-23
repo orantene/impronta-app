@@ -106,3 +106,16 @@ test("TUL-391: support-ticket bells render in ES, subject text untouched", () =>
   assert.equal(t("Weekly support digest"), "Resumen semanal de soporte");
   assert.equal(localizeNotificationText("Resolved: QA ticket", "en"), "Resolved: QA ticket");
 });
+
+test("TUL-1928: roster and join-request bells render in Spanish for an ES viewer", () => {
+  assert.equal(localizeNotificationText("Ana requested to join your roster", "es"), "Ana pidió unirse a tu lista");
+  assert.equal(localizeNotificationText("You're on Studio Luz's roster", "es"), "Estás en la lista de Studio Luz");
+  assert.equal(localizeNotificationText("You're now part of the team roster.", "es"), "Ya formas parte de la lista del equipo.");
+  assert.equal(localizeNotificationText("Update on your roster request", "es"), "Novedades sobre tu solicitud para unirte a la lista");
+  assert.equal(
+    localizeNotificationText("Studio Luz isn't able to add you to their roster right now.", "es"),
+    "Studio Luz no puede agregarte a su lista por ahora.",
+  );
+  assert.equal(localizeNotificationText("Your profile is approved", "es"), "Tu perfil fue aprobado");
+  assert.equal(localizeNotificationText("Ana requested to join your roster", "en"), "Ana requested to join your roster");
+});
