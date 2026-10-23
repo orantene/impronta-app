@@ -1348,7 +1348,7 @@ function BuilderNodeContentInspectorBody({
             </select>
           </div>
           <div className={KIT.field}>
-            <label className={KIT.label}>Title</label>
+            <label className={KIT.label}>{t("Title")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="title"
@@ -1707,7 +1707,7 @@ function BuilderNodeContentInspectorBody({
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Copy">
           <div className={KIT.field}>
-            <label className={KIT.label}>Title</label>
+            <label className={KIT.label}>{t("Title")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="title"
@@ -1924,7 +1924,7 @@ function BuilderNodeContentInspectorBody({
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Copy">
           <div className={KIT.field}>
-            <label className={KIT.label}>Title</label>
+            <label className={KIT.label}>{t("Title")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="title"
@@ -1979,7 +1979,7 @@ function BuilderNodeContentInspectorBody({
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Copy">
           <div className={KIT.field}>
-            <label className={KIT.label}>Title</label>
+            <label className={KIT.label}>{t("Title")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="title"

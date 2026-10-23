@@ -2357,6 +2357,23 @@
         "businessBody": "Agency, studio, band, team, or just you. Set up a workspace with your own site, roster, bookings, and payments.",
         "staffNote": "Staff accounts are assigned by the agency directly.",
         "error": "Something went wrong. Please try again."
+      },
+      "home": {
+        "eyebrow": "Your home",
+        "titleLead": "Where should we",
+        "titleHighlight": "start you?",
+        "introHybrid": "You have both a profile and a workspace. Pick the one to open on sign-in. You keep full access to the other, and you can change this whenever you like.",
+        "introSingleSurface": "Pick the dashboard to open on sign-in. You keep access to the others, and you can change this whenever you like.",
+        "workspaceDescription": "Roster, bookings, payments, and your website.",
+        "talentProfileTitle": "My profile",
+        "talentDescriptionRepresented": "Your own bookings, calendar, and earnings, including work through the agencies that represent you.",
+        "talentDescriptionIndependent": "Your own bookings, calendar, and earnings.",
+        "clientTitle": "Booking dashboard",
+        "clientDescription": "The requests you've sent and the talent you've saved.",
+        "current": "Current",
+        "errorUnknown": "That isn't one of your dashboards.",
+        "errorUnavailable": "You don't have that dashboard yet.",
+        "errorFailed": "Couldn't save your choice. Please try again."
       }
     },
     "consent": {
