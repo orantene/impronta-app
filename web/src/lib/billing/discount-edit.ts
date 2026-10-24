@@ -45,7 +45,7 @@ export async function applyDiscountEdit(
 
   const load = await admin
     .from("product_discounts")
-    .select("id, stripe_coupon_id, name, ends_at")
+    .select("id, stripe_coupon_id, name, code, ends_at")
     .eq("id", input.discountId)
     .maybeSingle();
   if (load.error || !load.data) {
@@ -55,6 +55,7 @@ export async function applyDiscountEdit(
     id: string;
     stripe_coupon_id: string | null;
     name: string;
+    code: string | null;
     ends_at: string | null;
   };
   // An existing code may already be expired and stays editable; only the start/end order is checked.
@@ -79,7 +80,8 @@ export async function applyDiscountEdit(
   if (input.name !== row.name) {
     await renameDiscountInStripe({
       stripeCouponId: row.stripe_coupon_id,
-      name: input.name,
+      // TUL-1904: Stripe prints the coupon name on invoices, so send the public code, never the internal admin name.
+      name: row.code?.trim().toUpperCase() || "Discount",
     });
   }
 

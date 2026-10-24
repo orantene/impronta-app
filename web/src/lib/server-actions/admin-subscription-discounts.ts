@@ -27,6 +27,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { revalidateCommerceSurfaces } from "@/lib/pricing/revalidate-commerce";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { loadAccountDiscountLocale } from "@/lib/billing/account-discount-locale";
 import { DEFAULT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import {
   ACCOUNT_DISCOUNT_SELECT,
@@ -224,6 +225,7 @@ async function syncAccountDiscount(
       duration: row.duration,
       durationMonths: row.durationMonths,
       subjectLabel,
+      locale: await loadAccountDiscountLocale(admin, row),
     });
     if (!created.ok) {
       await admin

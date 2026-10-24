@@ -26,6 +26,7 @@
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { customerDiscountLabel } from "@/lib/billing/customer-discount-label";
 import { logServerError } from "@/lib/server/safe-error";
 import type Stripe from "stripe";
 
@@ -70,6 +71,8 @@ export type AccountCouponInput = {
   durationMonths: number | null;
   /** Human name for the coupon in the Stripe dashboard. Falls back to the id. */
   subjectLabel?: string | null;
+  /** Invoice language for the customer-facing coupon name (TUL-1904). Defaults to English. */
+  locale?: string | null;
 };
 
 export type AccountCouponResult =
@@ -140,12 +143,19 @@ export function buildAccountCouponParams(
   const metadata: Record<string, string> = {
     subscription_discount_id: input.id,
     subject_type: input.subjectType,
+    // TUL-1904: the internal label lives here, never in the customer-visible `name`.
+    internal_label: `Account discount · ${subject}`,
   };
   if (input.tenantId) metadata.tenant_id = input.tenantId;
   if (input.talentProfileId) metadata.talent_profile_id = input.talentProfileId;
 
   const params: Stripe.CouponCreateParams = {
-    name: `Account discount · ${subject}`,
+    name: customerDiscountLabel({
+      kind: input.kind === "percent" ? "percent" : "fixed",
+      value: input.value,
+      currency: input.currency,
+      locale: input.locale,
+    }),
     duration: input.duration,
     metadata,
   };
